@@ -4,8 +4,10 @@ import {
   Settings, 
   FileText, 
   Award,
-  Target
+  Target,
+  Shield
 } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 import { NavLink } from "react-router-dom";
 import {
   Sidebar,
@@ -31,6 +33,7 @@ const navigationItems = [
 
 export function NavigationSidebar() {
   const { state } = useSidebar();
+  const { profile } = useAuth();
   const isCollapsed = state === "collapsed";
 
   return (
@@ -78,6 +81,28 @@ export function NavigationSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+              
+              {/* Super Admin Section */}
+              {profile?.role === 'super_admin' && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <NavLink
+                      to="/super-admin"
+                      className={({ isActive }) =>
+                        cn(
+                          "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+                          isActive
+                            ? "bg-primary text-primary-foreground"
+                            : "hover:bg-accent"
+                        )
+                      }
+                    >
+                      <Shield className="h-4 w-4" />
+                      {!isCollapsed && <span>Super Admin</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
