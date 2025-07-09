@@ -1,0 +1,87 @@
+import { 
+  BarChart3, 
+  Users, 
+  Settings, 
+  FileText, 
+  Award,
+  Target
+} from "lucide-react";
+import { NavLink } from "react-router-dom";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  useSidebar,
+} from "@/components/ui/sidebar";
+import { cn } from "@/lib/utils";
+
+const navigationItems = [
+  { title: "Dashboard", url: "/", icon: BarChart3 },
+  { title: "My Reviews", url: "/reviews", icon: FileText },
+  { title: "Team Reviews", url: "/team", icon: Users },
+  { title: "Categories", url: "/categories", icon: Target },
+  { title: "Results", url: "/results", icon: Award },
+  { title: "Settings", url: "/settings", icon: Settings },
+];
+
+export function NavigationSidebar() {
+  const { state } = useSidebar();
+  const isCollapsed = state === "collapsed";
+
+  return (
+    <Sidebar
+      className={cn(
+        "border-r border-border bg-card",
+        isCollapsed ? "w-16" : "w-64"
+      )}
+      collapsible="icon"
+    >
+      <SidebarContent>
+        <div className="p-6">
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-lg bg-gradient-primary flex items-center justify-center">
+              <Award className="h-4 w-4 text-primary-foreground" />
+            </div>
+            {!isCollapsed && (
+              <h1 className="text-lg font-semibold">360° Review</h1>
+            )}
+          </div>
+        </div>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {navigationItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild>
+                    <NavLink
+                      to={item.url}
+                      end
+                      className={({ isActive }) =>
+                        cn(
+                          "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+                          isActive
+                            ? "bg-primary text-primary-foreground"
+                            : "hover:bg-accent"
+                        )
+                      }
+                    >
+                      <item.icon className="h-4 w-4" />
+                      {!isCollapsed && <span>{item.title}</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+    </Sidebar>
+  );
+}
