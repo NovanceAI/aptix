@@ -86,8 +86,13 @@ export function Layout({ children }: LayoutProps) {
           </header>
 
           {/* Main Content */}
-          <main className="flex-1 p-6">
+          <main className="flex-1 p-6 relative">
             {children}
+            
+            {/* Powered by NovanceAI - Bottom Right Corner */}
+            <div className="fixed bottom-4 right-4 text-xs text-muted-foreground bg-card/80 backdrop-blur-sm px-2 py-1 rounded border border-border/50">
+              Powered by NovanceAI
+            </div>
           </main>
         </div>
       </div>
