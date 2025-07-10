@@ -339,7 +339,14 @@ export default function Categories() {
           {profile?.role === 'area_admin' ? (
             // For area admins: read-only display of their area
             <div className="w-48 px-3 py-2 border border-input bg-muted rounded-md text-sm">
-              {areas.find(area => area.id === selectedArea)?.name || 'Loading...'}
+              {(() => {
+                console.log('Debug - selectedArea:', selectedArea);
+                console.log('Debug - areas:', areas);
+                console.log('Debug - userAreaPermissions:', userAreaPermissions);
+                const foundArea = areas.find(area => area.id === selectedArea);
+                console.log('Debug - foundArea:', foundArea);
+                return foundArea?.name || `No area found (${selectedArea})`;
+              })()}
             </div>
           ) : (
             // For client admins: interactive filter
