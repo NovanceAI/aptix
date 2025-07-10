@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ReviewCard } from "./ReviewCard";
+import EvaluationPeriods from "./EvaluationPeriods";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -34,7 +35,7 @@ interface RecentReview {
 }
 
 export const Dashboard = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [stats, setStats] = useState<DashboardStats>({
@@ -280,6 +281,11 @@ export const Dashboard = () => {
           )}
         </div>
       </div>
+
+      {/* Evaluation Periods Section - Only for Client Admins */}
+      {profile?.role === 'client_admin' && (
+        <EvaluationPeriods />
+      )}
 
       {/* Quick Actions */}
       <Card className="shadow-card">

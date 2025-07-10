@@ -185,6 +185,45 @@ export type Database = {
           },
         ]
       }
+      evaluation_periods: {
+        Row: {
+          client_id: string
+          created_at: string
+          description: string | null
+          end_date: string
+          frequency: string
+          id: string
+          name: string
+          start_date: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          description?: string | null
+          end_date: string
+          frequency: string
+          id?: string
+          name: string
+          start_date: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          description?: string | null
+          end_date?: string
+          frequency?: string
+          id?: string
+          name?: string
+          start_date?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       evaluation_responses: {
         Row: {
           comments: string | null
