@@ -114,29 +114,42 @@ export default function Areas() {
   };
 
   const fetchPermissions = async () => {
-    const { data, error } = await supabase
+    // Fetch permissions with area names
+    const { data: permissionsData, error: permissionsError } = await supabase
       .from('area_permissions')
       .select(`
         *,
-        areas!area_permissions_area_id_fkey(name),
-        profiles!area_permissions_user_id_fkey(first_name, last_name, email)
+        areas(name)
       `)
       .order('created_at', { ascending: false });
 
-    if (error) {
+    if (permissionsError) {
       toast({
         title: "Error",
         description: "Failed to fetch permissions",
         variant: "destructive",
       });
-    } else {
-      // Type assertion to handle Supabase response structure
-      const formattedPermissions = (data || []).map((permission: any) => ({
-        ...permission,
-        permission_level: permission.permission_level as 'admin' | 'viewer'
-      }));
-      setPermissions(formattedPermissions);
+      return;
     }
+
+    // Fetch user profiles separately
+    const userIds = permissionsData?.map(p => p.user_id) || [];
+    const { data: profilesData } = await supabase
+      .from('profiles')
+      .select('id, first_name, last_name, email')
+      .in('id', userIds);
+
+    // Create a map of user profiles for quick lookup
+    const profilesMap = new Map(profilesData?.map(p => [p.id, p]) || []);
+
+    // Combine the data
+    const formattedPermissions = (permissionsData || []).map((permission: any) => ({
+      ...permission,
+      permission_level: permission.permission_level as 'admin' | 'viewer',
+      profiles: profilesMap.get(permission.user_id) || null
+    }));
+    
+    setPermissions(formattedPermissions);
   };
 
   const fetchProfiles = async () => {
