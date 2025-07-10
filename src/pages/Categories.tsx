@@ -296,11 +296,15 @@ export default function Categories() {
       filtered = criteria.filter(c => 
         !c.area_id || c.area_id === profile.area_id
       );
-    } else if (profile?.role === 'area_admin') {
+     } else if (profile?.role === 'area_admin') {
       // Area admins can see criteria from areas they have admin permissions for, plus unassigned
-      filtered = criteria.filter(c => 
-        !c.area_id || userAreaPermissions.includes(c.area_id)
-      );
+      if (selectedArea === "all") {
+        filtered = criteria.filter(c => 
+          !c.area_id || userAreaPermissions.includes(c.area_id)
+        );
+      } else {
+        filtered = criteria.filter(c => c.area_id === selectedArea);
+      }
     } else if (profile?.role === 'client_admin') {
       // Client admins can see all criteria, apply area filter if selected
       if (selectedArea === "all") {
@@ -331,23 +335,36 @@ export default function Categories() {
           </p>
         </div>
         <div className="flex items-center gap-4">
-          {/* Show area filter for all users, but disabled for non-client-admins */}
+          {/* Show area filter for client admins and area admins */}
           <Select 
             value={selectedArea} 
-            onValueChange={profile?.role === 'client_admin' ? setSelectedArea : undefined}
-            disabled={profile?.role !== 'client_admin'}
+            onValueChange={profile?.role === 'client_admin' || profile?.role === 'area_admin' ? setSelectedArea : undefined}
+            disabled={profile?.role === 'user'}
           >
             <SelectTrigger className="w-48">
               <SelectValue placeholder="Filter by area" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Areas</SelectItem>
-              <SelectItem value="unassigned">Unassigned</SelectItem>
-              {areas.map((area) => (
-                <SelectItem key={area.id} value={area.id}>
-                  {area.name}
-                </SelectItem>
-              ))}
+              {profile?.role === 'client_admin' && (
+                <>
+                  <SelectItem value="all">All Areas</SelectItem>
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                </>
+              )}
+              {areas
+                .filter(area => {
+                  // For client admins, show all areas
+                  if (profile?.role === 'client_admin') return true;
+                  // For area admins, only show areas they have admin permissions for
+                  if (profile?.role === 'area_admin') return userAreaPermissions.includes(area.id);
+                  // For users, show their assigned area only
+                  return profile?.area_id === area.id;
+                })
+                .map((area) => (
+                  <SelectItem key={area.id} value={area.id}>
+                    {area.name}
+                  </SelectItem>
+                ))}
             </SelectContent>
           </Select>
           {canCreateCriteria() && (
