@@ -169,41 +169,65 @@ export default function Auth() {
         return;
       }
 
+      // Wait a moment for auth to complete
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Get the user session to get the user ID
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        setError("Failed to get user information after signup");
+        return;
+      }
+
+      // Create profile for the user
+      const profileData: any = {
+        id: user.id,
+        email: invitation.email,
+        first_name: data.firstName,
+        last_name: data.lastName,
+        role: invitation.invitation_type === 'area_admin' ? 'area_admin' : 'user',
+        client_id: invitation.client_id,
+      };
+
+      if (invitation.invitation_type === 'employee' && invitation.area_id) {
+        profileData.area_id = invitation.area_id;
+      } else if (invitation.invitation_type === 'area_admin' && data.areaId) {
+        profileData.area_id = data.areaId;
+      }
+
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert(profileData);
+
+      if (profileError) {
+        console.error("Profile creation error:", profileError);
+        setError("Failed to create user profile: " + profileError.message);
+        return;
+      }
+
+      // If area admin, grant area admin permission
+      if (invitation.invitation_type === 'area_admin' && data.areaId) {
+        const { error: permissionError } = await supabase
+          .from('area_permissions')
+          .insert({
+            user_id: user.id,
+            area_id: data.areaId,
+            permission_level: 'admin',
+            granted_by: invitation.invited_by,
+          });
+
+        if (permissionError) {
+          console.error("Permission creation error:", permissionError);
+          // Don't fail the signup for this, just log it
+        }
+      }
+
       // Mark invitation as used
       await supabase
         .from('invitations')
         .update({ used_at: new Date().toISOString() })
         .eq('id', invitation.id);
-
-      // Update user profile with role and area if needed
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const updateData: any = {
-          role: invitation.invitation_type === 'area_admin' ? 'area_admin' : 'user',
-          client_id: invitation.client_id,
-        };
-
-        if (invitation.invitation_type === 'employee') {
-          updateData.area_id = invitation.area_id;
-        } else if (invitation.invitation_type === 'area_admin' && data.areaId) {
-          updateData.area_id = data.areaId;
-          
-          // Grant area admin permission
-          await supabase
-            .from('area_permissions')
-            .insert({
-              user_id: user.id,
-              area_id: data.areaId,
-              permission_level: 'admin',
-              granted_by: invitation.invited_by,
-            });
-        }
-
-        await supabase
-          .from('profiles')
-          .update(updateData)
-          .eq('id', user.id);
-      }
 
       toast({
         title: "Success",
