@@ -100,55 +100,52 @@ export default function Categories() {
   };
 
   const fetchAreas = async () => {
-    let query = supabase
-      .from('areas')
-      .select('*')
-      .order('name', { ascending: true });
+    try {
+      const { data, error } = await supabase
+        .from('areas')
+        .select('*')
+        .order('name', { ascending: true });
 
-    // If user is not client admin, filter areas based on their permissions
-    if (profile?.role !== 'client_admin') {
-      const { data: permissions } = await supabase
-        .from('area_permissions')
-        .select('area_id')
-        .eq('user_id', user?.id);
-      
-      if (permissions && permissions.length > 0) {
-        const areaIds = permissions.map(p => p.area_id);
-        query = query.in('id', areaIds);
-      } else {
-        // No permissions, return empty array
+      if (error) {
+        console.error('Error fetching areas:', error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch areas",
+          variant: "destructive",
+        });
         setAreas([]);
-        return;
+      } else {
+        setAreas(data || []);
       }
-    }
-
-    const { data, error } = await query;
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to fetch areas",
-        variant: "destructive",
-      });
-    } else {
-      setAreas(data || []);
+    } catch (error) {
+      console.error('Error in fetchAreas:', error);
+      setAreas([]);
     }
   };
 
   const fetchUserAreaPermissions = async () => {
     if (!user || profile?.role === 'client_admin') {
       // Client admins have access to all areas
+      setUserAreaPermissions([]);
       return;
     }
 
-    const { data, error } = await supabase
-      .from('area_permissions')
-      .select('area_id')
-      .eq('user_id', user.id)
-      .eq('permission_level', 'admin');
+    try {
+      const { data, error } = await supabase
+        .from('area_permissions')
+        .select('area_id')
+        .eq('user_id', user.id)
+        .eq('permission_level', 'admin');
 
-    if (!error && data) {
-      setUserAreaPermissions(data.map(p => p.area_id));
+      if (!error && data) {
+        setUserAreaPermissions(data.map(p => p.area_id));
+      } else {
+        console.error('Error fetching user area permissions:', error);
+        setUserAreaPermissions([]);
+      }
+    } catch (error) {
+      console.error('Error in fetchUserAreaPermissions:', error);
+      setUserAreaPermissions([]);
     }
   };
 

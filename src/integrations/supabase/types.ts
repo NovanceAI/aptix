@@ -346,6 +346,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_user_area_admin_areas: {
+        Args: { user_id: string }
+        Returns: string[]
+      }
       get_user_area_permission: {
         Args: { user_id: string; area_id: string }
         Returns: string
@@ -359,6 +363,10 @@ export type Database = {
         Returns: Database["public"]["Enums"]["user_role"]
       }
       is_area_admin: {
+        Args: { user_id: string; area_id: string }
+        Returns: boolean
+      }
+      is_user_area_admin: {
         Args: { user_id: string; area_id: string }
         Returns: boolean
       }
