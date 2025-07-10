@@ -7,7 +7,8 @@ import {
   Target,
   Shield,
   UserCog,
-  Building
+  Building,
+  Clock
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { NavLink } from "react-router-dom";
@@ -102,6 +103,24 @@ export function NavigationSidebar() {
                       >
                         <Building className="h-4 w-4" />
                         {!isCollapsed && <span>Areas</span>}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild>
+                      <NavLink
+                        to="/periods"
+                        className={({ isActive }) =>
+                          cn(
+                            "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+                            isActive
+                              ? "bg-primary text-primary-foreground"
+                              : "hover:bg-accent"
+                          )
+                        }
+                      >
+                        <Clock className="h-4 w-4" />
+                        {!isCollapsed && <span>Periods</span>}
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

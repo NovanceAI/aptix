@@ -2,8 +2,8 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReviewCard } from "./ReviewCard";
-import EvaluationPeriods from "./EvaluationPeriods";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -13,7 +13,9 @@ import {
   Clock, 
   Award,
   Plus,
-  TrendingUp
+  TrendingUp,
+  Building,
+  Calendar
 } from "lucide-react";
 
 interface DashboardStats {
@@ -34,6 +36,18 @@ interface RecentReview {
   reviewerName: string;
 }
 
+interface Area {
+  id: string;
+  name: string;
+}
+
+interface EvaluationPeriod {
+  id: string;
+  name: string;
+  frequency: string;
+  status: string;
+}
+
 export const Dashboard = () => {
   const { user, profile } = useAuth();
   const { toast } = useToast();
@@ -45,13 +59,19 @@ export const Dashboard = () => {
     avgRating: 0
   });
   const [recentReviews, setRecentReviews] = useState<RecentReview[]>([]);
+  const [areas, setAreas] = useState<Area[]>([]);
+  const [periods, setPeriods] = useState<EvaluationPeriod[]>([]);
+  const [selectedArea, setSelectedArea] = useState<string>("all");
+  const [selectedPeriod, setSelectedPeriod] = useState<string>("all");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user) {
+    if (user && profile) {
       fetchDashboardData();
+      fetchAreas();
+      fetchPeriods();
     }
-  }, [user]);
+  }, [user, profile]);
 
   const fetchDashboardData = async () => {
     try {
@@ -171,6 +191,36 @@ export const Dashboard = () => {
     }
   };
 
+  const fetchAreas = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('areas')
+        .select('id, name')
+        .eq('client_id', profile!.client_id)
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+      setAreas(data || []);
+    } catch (error) {
+      console.error('Error fetching areas:', error);
+    }
+  };
+
+  const fetchPeriods = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('evaluation_periods')
+        .select('id, name, frequency, status')
+        .eq('client_id', profile!.client_id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setPeriods((data || []) as EvaluationPeriod[]);
+    } catch (error) {
+      console.error('Error fetching periods:', error);
+    }
+  };
+
   const handleExportReports = () => {
     // For now, show a toast that this feature is coming soon
     toast({
@@ -228,10 +278,47 @@ export const Dashboard = () => {
             Track and manage 360° performance reviews
           </p>
         </div>
-        <Button className="bg-gradient-primary shadow-elegant">
-          <Plus className="h-4 w-4 mr-2" />
-          New Review
-        </Button>
+        <div className="flex items-center gap-4">
+          {/* Filters */}
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Filter by period" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Periods</SelectItem>
+                {periods.map((period) => (
+                  <SelectItem key={period.id} value={period.id}>
+                    {period.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Building className="h-4 w-4 text-muted-foreground" />
+            <Select value={selectedArea} onValueChange={setSelectedArea}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Filter by area" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Areas</SelectItem>
+                {areas.map((area) => (
+                  <SelectItem key={area.id} value={area.id}>
+                    {area.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <Button className="bg-gradient-primary shadow-elegant">
+            <Plus className="h-4 w-4 mr-2" />
+            New Review
+          </Button>
+        </div>
       </div>
 
       {/* Stats Grid */}
@@ -282,11 +369,6 @@ export const Dashboard = () => {
         </div>
       </div>
 
-      {/* Evaluation Periods Section - Only for Client Admins */}
-      {profile?.role === 'client_admin' && (
-        <EvaluationPeriods />
-      )}
-
       {/* Quick Actions */}
       <Card className="shadow-card">
         <CardHeader>
@@ -302,6 +384,16 @@ export const Dashboard = () => {
               <Users className="h-6 w-6 mb-2" />
               <span>Manage Categories</span>
             </Button>
+            {profile?.role === 'client_admin' && (
+              <Button 
+                variant="outline" 
+                className="h-20 flex-col"
+                onClick={() => navigate('/periods')}
+              >
+                <Clock className="h-6 w-6 mb-2" />
+                <span>Manage Periods</span>
+              </Button>
+            )}
             <Button 
               variant="outline" 
               className="h-20 flex-col"
