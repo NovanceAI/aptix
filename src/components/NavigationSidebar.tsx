@@ -49,12 +49,14 @@ export function NavigationSidebar() {
     >
       <SidebarContent>
         <div className="p-6">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-gradient-primary flex items-center justify-center">
-              <Award className="h-4 w-4 text-primary-foreground" />
-            </div>
+          <div className="flex items-center gap-3">
+            <img 
+              src="/lovable-uploads/0d951d8d-f416-40ce-a691-a58cc1c22de3.png" 
+              alt="Aptix Logo" 
+              className="h-8 w-8"
+            />
             {!isCollapsed && (
-              <h1 className="text-lg font-semibold">360° Review</h1>
+              <h1 className="text-xl font-bold text-foreground">APTIX</h1>
             )}
           </div>
         </div>

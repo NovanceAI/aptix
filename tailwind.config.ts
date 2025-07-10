@@ -69,6 +69,11 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				aptix: {
+					blue: 'hsl(var(--aptix-blue))',
+					teal: 'hsl(var(--aptix-teal))',
+					purple: 'hsl(var(--aptix-purple))'
 				}
 			},
 			backgroundImage: {
