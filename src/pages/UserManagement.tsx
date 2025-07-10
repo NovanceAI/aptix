@@ -187,7 +187,7 @@ export default function UserManagement() {
             email: formData.email,
             first_name: formData.firstName,
             last_name: formData.lastName,
-            role: formData.role as any, // Temporary cast until types are updated
+            role: formData.role,
             area_id: (formData.role === 'client_admin' || formData.role === 'area_admin') ? null : (formData.areaId === 'none' ? null : formData.areaId),
             client_id: profile.client_id
           });
@@ -222,7 +222,7 @@ export default function UserManagement() {
         .update({
           first_name: formData.firstName,
           last_name: formData.lastName,
-          role: formData.role as any, // Temporary cast until types are updated
+          role: formData.role,
           area_id: (formData.role === 'client_admin' || formData.role === 'area_admin') ? null : (formData.areaId === 'none' ? null : formData.areaId)
         })
         .eq('id', editingUser.id);
