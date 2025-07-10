@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
@@ -7,9 +7,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Building2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { Loader2, Building2, Crown, Users } from 'lucide-react';
 
 interface SignInForm {
   email: string;
@@ -22,17 +24,69 @@ interface SignUpForm {
   email: string;
   password: string;
   confirmPassword: string;
+  companyName?: string;
 }
 
 export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [emailDomainInfo, setEmailDomainInfo] = useState<{
+    exists: boolean;
+    clientName?: string;
+    willBeAdmin: boolean;
+  }>({ exists: false, willBeAdmin: false });
   const navigate = useNavigate();
   const { signIn, signUp } = useAuth();
   const { toast } = useToast();
 
   const signInForm = useForm<SignInForm>();
   const signUpForm = useForm<SignUpForm>();
+
+  // Watch email input to check domain status
+  const watchedEmail = signUpForm.watch('email');
+
+  useEffect(() => {
+    const checkEmailDomain = async () => {
+      if (!watchedEmail || !watchedEmail.includes('@')) {
+        setEmailDomainInfo({ exists: false, willBeAdmin: false });
+        return;
+      }
+
+      const domain = watchedEmail.split('@')[1];
+      if (!domain) return;
+
+      try {
+        const { data, error } = await supabase
+          .from('client_email_domains')
+          .select('clients(name)')
+          .eq('domain', domain)
+          .maybeSingle();
+
+        if (error) {
+          console.error('Error checking domain:', error);
+          return;
+        }
+
+        if (data) {
+          setEmailDomainInfo({
+            exists: true,
+            clientName: data.clients?.name,
+            willBeAdmin: false
+          });
+        } else {
+          setEmailDomainInfo({
+            exists: false,
+            willBeAdmin: true
+          });
+        }
+      } catch (err) {
+        console.error('Error checking domain:', err);
+      }
+    };
+
+    const timeoutId = setTimeout(checkEmailDomain, 500);
+    return () => clearTimeout(timeoutId);
+  }, [watchedEmail]);
 
   const handleSignIn = async (data: SignInForm) => {
     setIsLoading(true);
@@ -67,7 +121,13 @@ export default function Auth() {
     setIsLoading(true);
     setError(null);
 
-    const { error } = await signUp(data.email, data.password, data.firstName, data.lastName);
+    const { error } = await signUp(
+      data.email, 
+      data.password, 
+      data.firstName, 
+      data.lastName,
+      data.companyName
+    );
 
     if (error) {
       setError(error.message);
@@ -77,13 +137,53 @@ export default function Auth() {
         variant: "destructive",
       });
     } else {
+      const successMessage = emailDomainInfo.willBeAdmin 
+        ? "Company created and account registered! You'll be the admin for your organization. Please check your email to verify your account."
+        : "Account created successfully! Please check your email to verify your account.";
+      
       toast({
         title: "Success",
-        description: "Account created successfully! Please check your email to verify your account.",
+        description: successMessage,
       });
     }
 
     setIsLoading(false);
+  };
+
+  const getDomainStatusMessage = () => {
+    if (!watchedEmail || !watchedEmail.includes('@')) return null;
+
+    if (emailDomainInfo.exists) {
+      return (
+        <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+          <Users className="h-4 w-4 text-blue-600" />
+          <div className="text-sm">
+            <p className="font-medium text-blue-900">
+              Joining {emailDomainInfo.clientName}
+            </p>
+            <p className="text-blue-700">
+              You'll be added as a team member to this organization
+            </p>
+          </div>
+        </div>
+      );
+    } else if (emailDomainInfo.willBeAdmin) {
+      return (
+        <div className="flex items-center gap-2 p-3 bg-amber-50 rounded-lg border border-amber-200">
+          <Crown className="h-4 w-4 text-amber-600" />
+          <div className="text-sm">
+            <p className="font-medium text-amber-900">
+              Creating New Organization
+            </p>
+            <p className="text-amber-700">
+              You'll be the admin for this company domain
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    return null;
   };
 
   return (
@@ -168,19 +268,34 @@ export default function Auth() {
                     />
                   </div>
                 </div>
+                
                 <div className="space-y-2">
-                  <Label htmlFor="signup-email">Email</Label>
+                  <Label htmlFor="signup-email">Work Email</Label>
                   <Input
                     id="signup-email"
                     type="email"
-                    placeholder="Enter your email"
+                    placeholder="Enter your work email"
                     {...signUpForm.register('email', { required: true })}
                     disabled={isLoading}
                   />
-                  <p className="text-sm text-muted-foreground">
-                    Your email domain must be registered by your organization administrator
-                  </p>
+                  {getDomainStatusMessage()}
                 </div>
+
+                {emailDomainInfo.willBeAdmin && (
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-company">Company Name</Label>
+                    <Input
+                      id="signup-company"
+                      placeholder="Enter your company name"
+                      {...signUpForm.register('companyName')}
+                      disabled={isLoading}
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      Optional: If not provided, we'll use your email domain
+                    </p>
+                  </div>
+                )}
+                
                 <div className="space-y-2">
                   <Label htmlFor="signup-password">Password</Label>
                   <Input
@@ -206,16 +321,28 @@ export default function Auth() {
                     <AlertDescription>{error}</AlertDescription>
                   </Alert>
                 )}
+                
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Creating Account...
+                      {emailDomainInfo.willBeAdmin ? 'Creating Company...' : 'Creating Account...'}
                     </>
                   ) : (
-                    'Create Account'
+                    <>
+                      {emailDomainInfo.willBeAdmin && <Crown className="mr-2 h-4 w-4" />}
+                      {emailDomainInfo.willBeAdmin ? 'Create Company & Account' : 'Join Team'}
+                    </>
                   )}
                 </Button>
+
+                {emailDomainInfo.willBeAdmin && (
+                  <div className="text-center pt-2">
+                    <Badge variant="outline" className="text-amber-700 border-amber-300">
+                      You'll become the company administrator
+                    </Badge>
+                  </div>
+                )}
               </form>
             </TabsContent>
           </Tabs>
