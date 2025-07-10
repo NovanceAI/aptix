@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ReviewCard } from "./ReviewCard";
@@ -35,6 +36,7 @@ interface RecentReview {
 export const Dashboard = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [stats, setStats] = useState<DashboardStats>({
     totalReviews: 0,
     pendingReviews: 0,
@@ -168,6 +170,14 @@ export const Dashboard = () => {
     }
   };
 
+  const handleExportReports = () => {
+    // For now, show a toast that this feature is coming soon
+    toast({
+      title: "Export Reports",
+      description: "Report export functionality coming soon!",
+    });
+  };
+
   const statsData = [
     {
       title: "Total Reviews",
@@ -278,15 +288,27 @@ export const Dashboard = () => {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Button variant="outline" className="h-20 flex-col">
+            <Button 
+              variant="outline" 
+              className="h-20 flex-col"
+              onClick={() => navigate('/categories')}
+            >
               <Users className="h-6 w-6 mb-2" />
               <span>Manage Categories</span>
             </Button>
-            <Button variant="outline" className="h-20 flex-col">
+            <Button 
+              variant="outline" 
+              className="h-20 flex-col"
+              onClick={() => navigate('/results')}
+            >
               <BarChart3 className="h-6 w-6 mb-2" />
               <span>View Analytics</span>
             </Button>
-            <Button variant="outline" className="h-20 flex-col">
+            <Button 
+              variant="outline" 
+              className="h-20 flex-col"
+              onClick={handleExportReports}
+            >
               <Award className="h-6 w-6 mb-2" />
               <span>Export Reports</span>
             </Button>
