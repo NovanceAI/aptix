@@ -111,7 +111,7 @@ export default function UserManagement() {
           role, 
           area_id, 
           created_at,
-          areas(name)
+          area:areas(name)
         `)
         .eq('client_id', profile.client_id)
         .order('created_at', { ascending: false });
