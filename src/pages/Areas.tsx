@@ -118,8 +118,8 @@ export default function Areas() {
       .from('area_permissions')
       .select(`
         *,
-        areas(name),
-        profiles(first_name, last_name, email)
+        areas!area_permissions_area_id_fkey(name),
+        profiles!area_permissions_user_id_fkey(first_name, last_name, email)
       `)
       .order('created_at', { ascending: false });
 
