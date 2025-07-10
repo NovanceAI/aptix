@@ -29,7 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Fetch user profile with error handling
+          // Don't set loading to false yet - wait for profile to load
           setTimeout(async () => {
             try {
               const { data: profileData, error } = await supabase
@@ -44,15 +44,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               } else {
                 setProfile(profileData);
               }
+              setLoading(false); // Set loading false after profile is fetched
             } catch (err) {
               console.error('Failed to fetch profile:', err);
               setProfile(null);
+              setLoading(false);
             }
           }, 0);
         } else {
           setProfile(null);
+          setLoading(false);
         }
-        setLoading(false);
       }
     );
 
@@ -60,6 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         console.log('Existing session found:', session.user?.id);
+        // Don't set loading false here if there's a session - let the auth state change handle it
       } else {
         console.log('No existing session');
         setLoading(false);

@@ -10,6 +10,7 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
   const { user, profile, loading } = useAuth();
 
+  // Show loading while auth state is being determined
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -18,11 +19,22 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
     );
   }
 
-  if (!user || !profile) {
+  // If no user, redirect to auth
+  if (!user) {
     return <Navigate to="/auth" replace />;
   }
 
-  if (requiredRole && profile.role !== requiredRole) {
+  // If user exists but profile is still loading, show loading
+  if (user && !profile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  // Check role requirements
+  if (requiredRole && profile?.role !== requiredRole) {
     return <Navigate to="/" replace />;
   }
 
