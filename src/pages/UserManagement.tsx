@@ -35,7 +35,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2, Users, Building, UserPlus } from 'lucide-react';
+import { Plus, Edit, Trash2, Users, Building, UserPlus, Copy, Link } from 'lucide-react';
 import { InvitationManager } from '@/components/InvitationManager';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -299,6 +299,39 @@ export default function UserManagement() {
     setIsEditDialogOpen(true);
   };
 
+  const getInvitationUrl = () => {
+    const baseUrl = window.location.origin;
+    return `${baseUrl}/auth?invite=`;
+  };
+
+  const copyInvitationInfo = () => {
+    const invitationType = profile?.role === 'client_admin' ? 'Area Admin' : 'Employee';
+    const instructions = profile?.role === 'client_admin' 
+      ? `To invite Area Admins to your organization:
+
+1. Go to the "Send Invitations" tab
+2. Create an invitation for the Area Admin role  
+3. Copy the invitation link and send it to the person
+4. They'll be able to select or create their area during signup
+
+Base invitation URL: ${getInvitationUrl()}[TOKEN]`
+      : `To invite Employees to your area:
+
+1. Go to the "Send Invitations" tab
+2. Create an invitation for the Employee role
+3. Select your area for the employee
+4. Copy the invitation link and send it to the person
+5. They'll automatically be assigned to your area
+
+Base invitation URL: ${getInvitationUrl()}[TOKEN]`;
+
+    navigator.clipboard.writeText(instructions);
+    toast({
+      title: "Instructions Copied",
+      description: `${invitationType} invitation instructions copied to clipboard`,
+    });
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -321,6 +354,50 @@ export default function UserManagement() {
         </TabsList>
 
         <TabsContent value="users" className="space-y-6">
+          {/* Invitation URL Card */}
+          <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Link className="h-5 w-5 text-blue-600" />
+                Invite {profile?.role === 'client_admin' ? 'Area Admins' : 'Employees'}
+              </CardTitle>
+              <CardDescription>
+                {profile?.role === 'client_admin' 
+                  ? 'Send invitation links to new Area Admins for your organization'
+                  : 'Send invitation links to new employees for your area'
+                }
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between p-4 bg-white rounded-lg border border-blue-200">
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-900 mb-1">
+                    Invitation Instructions
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    Click to copy step-by-step instructions for inviting {profile?.role === 'client_admin' ? 'Area Admins' : 'employees'}
+                  </p>
+                </div>
+                <Button 
+                  onClick={copyInvitationInfo}
+                  className="ml-4"
+                  size="sm"
+                >
+                  <Copy className="h-4 w-4 mr-2" />
+                  Copy Instructions
+                </Button>
+              </div>
+              <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <p className="text-xs text-blue-700 mb-1">Quick Steps:</p>
+                <p className="text-sm text-blue-800">
+                  1. Go to "Send Invitations" tab → 
+                  2. Create invitation → 
+                  3. Copy link → 
+                  4. Send to {profile?.role === 'client_admin' ? 'Area Admin' : 'employee'}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <div>
