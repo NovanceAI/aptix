@@ -48,15 +48,32 @@ export function InvitationManager() {
     try {
       let query = supabase
         .from("invitations")
-        .select(`
-          *,
-          areas:area_id(name)
-        `)
+        .select("*")
         .order("created_at", { ascending: false });
 
       const { data, error } = await query;
       if (error) throw error;
-      setInvitations(data as unknown as Invitation[] || []);
+
+      // Fetch area names separately for invitations that have area_id
+      const invitationsWithAreas = await Promise.all(
+        (data || []).map(async (invitation) => {
+          if (invitation.area_id) {
+            const { data: areaData } = await supabase
+              .from("areas")
+              .select("name")
+              .eq("id", invitation.area_id)
+              .single();
+            
+            return {
+              ...invitation,
+              areas: areaData ? { name: areaData.name } : null
+            };
+          }
+          return { ...invitation, areas: null };
+        })
+      );
+
+      setInvitations(invitationsWithAreas as Invitation[]);
     } catch (error) {
       console.error("Error fetching invitations:", error);
       toast({

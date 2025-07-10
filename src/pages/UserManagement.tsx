@@ -418,8 +418,8 @@ export default function UserManagement() {
         </TabsList>
 
         <TabsContent value="users" className="space-y-6">
-          {/* Super Admin Create User Form */}
-          {profile?.role === 'super_admin' && (
+          {/* Create User Form - For Super Admins and Client Admins */}
+          {(profile?.role === 'super_admin' || profile?.role === 'client_admin') && (
             <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -427,7 +427,10 @@ export default function UserManagement() {
                   Create User Directly
                 </CardTitle>
                 <CardDescription>
-                  As a Super Admin, you can create users directly without needing invitations
+                  {profile?.role === 'super_admin' 
+                    ? 'As a Super Admin, you can create users directly for any client'
+                    : 'As a Client Admin, you can create users directly for your organization'
+                  }
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -470,21 +473,26 @@ export default function UserManagement() {
                       placeholder="Temporary password"
                     />
                   </div>
-                  <div>
-                    <Label htmlFor="client">Client</Label>
-                    <Select value={formData.clientId} onValueChange={(value) => setFormData({ ...formData, clientId: value })}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select client" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {clients.map((client) => (
-                          <SelectItem key={client.id} value={client.id}>
-                            {client.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  
+                  {/* Client selection - only for Super Admins */}
+                  {profile?.role === 'super_admin' && (
+                    <div>
+                      <Label htmlFor="client">Client</Label>
+                      <Select value={formData.clientId} onValueChange={(value) => setFormData({ ...formData, clientId: value })}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select client" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {clients.map((client) => (
+                            <SelectItem key={client.id} value={client.id}>
+                              {client.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  
                   <div>
                     <Label htmlFor="role">Role</Label>
                     <Select value={formData.role} onValueChange={(value) => setFormData({ ...formData, role: value as 'user' | 'client_admin' | 'area_admin' })}>
@@ -494,10 +502,13 @@ export default function UserManagement() {
                       <SelectContent>
                         <SelectItem value="user">User</SelectItem>
                         <SelectItem value="area_admin">Area Admin</SelectItem>
-                        <SelectItem value="client_admin">Client Admin</SelectItem>
+                        {(profile?.role === 'super_admin' || profile?.role === 'client_admin') && (
+                          <SelectItem value="client_admin">Client Admin</SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
+                  
                   {formData.role !== 'client_admin' && (
                     <div>
                       <Label htmlFor="area">Area</Label>
@@ -507,7 +518,11 @@ export default function UserManagement() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="none">No Area</SelectItem>
-                          {areas.filter(area => formData.clientId ? area.client_id === formData.clientId : true).map((area) => (
+                          {areas.filter(area => 
+                            profile?.role === 'super_admin' 
+                              ? (formData.clientId ? area.client_id === formData.clientId : true)
+                              : area.client_id === profile?.client_id
+                          ).map((area) => (
                             <SelectItem key={area.id} value={area.id}>
                               {area.name}
                             </SelectItem>
@@ -519,7 +534,13 @@ export default function UserManagement() {
                 </div>
                 <Button 
                   onClick={handleAddUser}
-                  disabled={!formData.email || !formData.firstName || !formData.lastName || !formData.password || !formData.clientId}
+                  disabled={
+                    !formData.email || 
+                    !formData.firstName || 
+                    !formData.lastName || 
+                    !formData.password || 
+                    (profile?.role === 'super_admin' && !formData.clientId)
+                  }
                   className="w-full md:w-auto"
                 >
                   <UserPlus className="h-4 w-4 mr-2" />
