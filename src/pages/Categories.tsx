@@ -61,7 +61,7 @@ export default function Categories() {
   const canEditCriteria = (criteria: EvaluationCriteria) => {
     if (!profile) return false;
     if (profile.role === 'client_admin') return true;
-    if (criteria.area_id && userAreaPermissions.includes(criteria.area_id)) return true;
+    if (profile.role === 'area_admin' && criteria.area_id && userAreaPermissions.includes(criteria.area_id)) return true;
     return false;
   };
 
@@ -241,24 +241,30 @@ export default function Categories() {
     setIsDialogOpen(true);
   };
 
-  // Filter criteria based on selected area and user permissions
+  // Filter criteria based on user role and permissions
   const getFilteredCriteria = () => {
     let filtered = criteria;
 
-    // Apply area filter
-    if (selectedArea === "all") {
-      filtered = criteria;
-    } else if (selectedArea === "unassigned") {
-      filtered = criteria.filter(c => !c.area_id);
-    } else {
-      filtered = criteria.filter(c => c.area_id === selectedArea);
-    }
-
-    // For non-client admins, only show criteria they can access
-    if (profile?.role !== 'client_admin') {
-      filtered = filtered.filter(c => 
+    // For regular users, only show criteria from their assigned area or areas they have permissions for
+    if (profile?.role === 'user') {
+      // Users can only see criteria from their assigned area or unassigned criteria
+      filtered = criteria.filter(c => 
+        !c.area_id || c.area_id === profile.area_id
+      );
+    } else if (profile?.role === 'area_admin') {
+      // Area admins can see criteria from areas they have admin permissions for, plus unassigned
+      filtered = criteria.filter(c => 
         !c.area_id || userAreaPermissions.includes(c.area_id)
       );
+    } else if (profile?.role === 'client_admin') {
+      // Client admins can see all criteria, apply area filter if selected
+      if (selectedArea === "all") {
+        filtered = criteria;
+      } else if (selectedArea === "unassigned") {
+        filtered = criteria.filter(c => !c.area_id);
+      } else {
+        filtered = criteria.filter(c => c.area_id === selectedArea);
+      }
     }
 
     return filtered;
@@ -280,20 +286,23 @@ export default function Categories() {
           </p>
         </div>
         <div className="flex items-center gap-4">
-          <Select value={selectedArea} onValueChange={setSelectedArea}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Filter by area" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Areas</SelectItem>
-              <SelectItem value="unassigned">Unassigned</SelectItem>
-              {areas.map((area) => (
-                <SelectItem key={area.id} value={area.id}>
-                  {area.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {/* Only show area filter to client admins */}
+          {profile?.role === 'client_admin' && (
+            <Select value={selectedArea} onValueChange={setSelectedArea}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Filter by area" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Areas</SelectItem>
+                <SelectItem value="unassigned">Unassigned</SelectItem>
+                {areas.map((area) => (
+                  <SelectItem key={area.id} value={area.id}>
+                    {area.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           {canCreateCriteria() && (
             <Button onClick={openNewDialog}>
               <Plus className="h-4 w-4 mr-2" />
