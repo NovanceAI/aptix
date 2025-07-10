@@ -12,6 +12,7 @@ import Categories from "./pages/Categories";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
 import SuperAdmin from "./pages/SuperAdmin";
+import UserManagement from "./pages/UserManagement";
 
 const queryClient = new QueryClient();
 
@@ -75,6 +76,14 @@ function AppContent() {
           element={
             <ProtectedRoute>
               <div className="p-8 text-center">Settings - Coming Soon</div>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/user-management" 
+          element={
+            <ProtectedRoute requiredRole="client_admin">
+              <UserManagement />
             </ProtectedRoute>
           } 
         />
