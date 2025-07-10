@@ -4,6 +4,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { 
   Table, 
   TableBody, 
@@ -22,13 +24,6 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -40,7 +35,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2, Users } from 'lucide-react';
+import { Plus, Edit, Trash2, Users, Building } from 'lucide-react';
 
 interface Profile {
   id: string;
@@ -48,7 +43,17 @@ interface Profile {
   first_name: string | null;
   last_name: string | null;
   role: 'user' | 'client_admin' | 'super_admin';
+  area_id: string | null;
   created_at: string;
+  area?: {
+    name: string;
+  };
+}
+
+interface Area {
+  id: string;
+  name: string;
+  description: string;
 }
 
 interface UserFormData {
@@ -56,6 +61,7 @@ interface UserFormData {
   firstName: string;
   lastName: string;
   role: 'user' | 'client_admin';
+  areaId: string;
   password?: string;
 }
 
@@ -63,6 +69,7 @@ export default function UserManagement() {
   const { profile } = useAuth();
   const { toast } = useToast();
   const [users, setUsers] = useState<Profile[]>([]);
+  const [areas, setAreas] = useState<Area[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -73,6 +80,7 @@ export default function UserManagement() {
     firstName: '',
     lastName: '',
     role: 'user',
+    areaId: '',
     password: ''
   });
 
@@ -86,11 +94,25 @@ export default function UserManagement() {
     );
   }
 
+  useEffect(() => {
+    fetchUsers();
+    fetchAreas();
+  }, [profile?.client_id]);
+
   const fetchUsers = async () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, email, first_name, last_name, role, created_at')
+        .select(`
+          id, 
+          email, 
+          first_name, 
+          last_name, 
+          role, 
+          area_id, 
+          created_at,
+          areas(name)
+        `)
         .eq('client_id', profile.client_id)
         .order('created_at', { ascending: false });
 
@@ -108,9 +130,24 @@ export default function UserManagement() {
     }
   };
 
-  useEffect(() => {
-    fetchUsers();
-  }, [profile?.client_id]);
+  const fetchAreas = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('areas')
+        .select('*')
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+      setAreas(data || []);
+    } catch (error) {
+      console.error('Error fetching areas:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch areas",
+        variant: "destructive",
+      });
+    }
+  };
 
   const resetForm = () => {
     setFormData({
@@ -118,6 +155,7 @@ export default function UserManagement() {
       firstName: '',
       lastName: '',
       role: 'user',
+      areaId: '',
       password: ''
     });
     setEditingUser(null);
@@ -150,6 +188,7 @@ export default function UserManagement() {
             first_name: formData.firstName,
             last_name: formData.lastName,
             role: formData.role,
+            area_id: formData.role === 'client_admin' ? null : (formData.areaId || null),
             client_id: profile.client_id
           });
 
@@ -183,7 +222,8 @@ export default function UserManagement() {
         .update({
           first_name: formData.firstName,
           last_name: formData.lastName,
-          role: formData.role
+          role: formData.role,
+          area_id: formData.role === 'client_admin' ? null : (formData.areaId || null)
         })
         .eq('id', editingUser.id);
 
@@ -241,7 +281,8 @@ export default function UserManagement() {
       email: user.email,
       firstName: user.first_name || '',
       lastName: user.last_name || '',
-      role: user.role === 'super_admin' ? 'client_admin' : user.role
+      role: user.role === 'super_admin' ? 'client_admin' : user.role,
+      areaId: user.area_id || ''
     });
     setIsEditDialogOpen(true);
   };
@@ -330,6 +371,27 @@ export default function UserManagement() {
                   </SelectContent>
                 </Select>
               </div>
+              {formData.role === 'user' && (
+                <div>
+                  <Label htmlFor="areaId">Area</Label>
+                  <Select 
+                    value={formData.areaId} 
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, areaId: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select an area" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">No specific area</SelectItem>
+                      {areas.map((area) => (
+                        <SelectItem key={area.id} value={area.id}>
+                          {area.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
@@ -358,6 +420,7 @@ export default function UserManagement() {
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Role</TableHead>
+                <TableHead>Area</TableHead>
                 <TableHead>Created</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -373,13 +436,24 @@ export default function UserManagement() {
                   </TableCell>
                   <TableCell>{user.email}</TableCell>
                   <TableCell>
-                    <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
-                      user.role === 'client_admin' 
-                        ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                        : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                    }`}>
+                    <Badge variant={user.role === 'client_admin' ? 'default' : 'secondary'}>
                       {user.role === 'client_admin' ? 'Admin' : 'User'}
-                    </span>
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {user.role === 'client_admin' ? (
+                      <Badge variant="outline" className="flex items-center gap-1 w-fit">
+                        <Building className="h-3 w-3" />
+                        All Areas
+                      </Badge>
+                    ) : user.area ? (
+                      <Badge variant="outline" className="flex items-center gap-1 w-fit">
+                        <Building className="h-3 w-3" />
+                        {user.area.name}
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary">Unassigned</Badge>
+                    )}
                   </TableCell>
                   <TableCell>
                     {new Date(user.created_at).toLocaleDateString()}
@@ -466,6 +540,27 @@ export default function UserManagement() {
                 </SelectContent>
               </Select>
             </div>
+            {formData.role === 'user' && (
+              <div>
+                <Label htmlFor="editAreaId">Area</Label>
+                <Select 
+                  value={formData.areaId} 
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, areaId: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select an area" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">No specific area</SelectItem>
+                    {areas.map((area) => (
+                      <SelectItem key={area.id} value={area.id}>
+                        {area.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>

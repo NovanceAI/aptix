@@ -292,6 +292,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          area_id: string | null
           client_id: string | null
           created_at: string
           email: string
@@ -302,6 +303,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          area_id?: string | null
           client_id?: string | null
           created_at?: string
           email: string
@@ -312,6 +314,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          area_id?: string | null
           client_id?: string | null
           created_at?: string
           email?: string
@@ -322,6 +325,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "profiles_area_id_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "areas"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "profiles_client_id_fkey"
             columns: ["client_id"]
