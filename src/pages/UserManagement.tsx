@@ -84,12 +84,12 @@ export default function UserManagement() {
     password: ''
   });
 
-  // Only show this page to client admins
-  if (profile?.role !== 'client_admin') {
+  // Allow client admins and area admins
+  if (profile?.role !== 'client_admin' && profile?.role !== 'area_admin') {
     return (
       <div className="p-8 text-center">
         <h1 className="text-2xl font-bold text-muted-foreground">Access Denied</h1>
-        <p className="text-muted-foreground">Only client administrators can access this page.</p>
+        <p className="text-muted-foreground">Only client administrators and area administrators can access this page.</p>
       </div>
     );
   }
@@ -101,7 +101,7 @@ export default function UserManagement() {
 
   const fetchUsers = async () => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('profiles')
         .select(`
           id, 
@@ -113,8 +113,14 @@ export default function UserManagement() {
           created_at,
           area:areas(name)
         `)
-        .eq('client_id', profile.client_id)
-        .order('created_at', { ascending: false });
+        .eq('client_id', profile.client_id);
+
+      // If user is area admin, only show users in their area
+      if (profile?.role === 'area_admin') {
+        query = query.eq('area_id', profile.area_id);
+      }
+
+      const { data, error } = await query.order('created_at', { ascending: false });
 
       if (error) throw error;
       setUsers(data || []);
@@ -155,7 +161,7 @@ export default function UserManagement() {
       firstName: '',
       lastName: '',
       role: 'user',
-      areaId: 'none',
+      areaId: profile?.role === 'area_admin' ? profile.area_id || 'none' : 'none',
       password: ''
     });
     setEditingUser(null);
@@ -188,7 +194,9 @@ export default function UserManagement() {
             first_name: formData.firstName,
             last_name: formData.lastName,
             role: formData.role,
-            area_id: (formData.role === 'client_admin' || formData.role === 'area_admin') ? null : (formData.areaId === 'none' ? null : formData.areaId),
+            area_id: formData.role === 'client_admin' ? null : 
+                    (formData.role === 'area_admin' ? (formData.areaId === 'none' ? null : formData.areaId) : 
+                    (formData.areaId === 'none' ? null : formData.areaId)),
             client_id: profile.client_id
           });
 
@@ -223,7 +231,9 @@ export default function UserManagement() {
           first_name: formData.firstName,
           last_name: formData.lastName,
           role: formData.role,
-          area_id: (formData.role === 'client_admin' || formData.role === 'area_admin') ? null : (formData.areaId === 'none' ? null : formData.areaId)
+          area_id: formData.role === 'client_admin' ? null : 
+                  (formData.role === 'area_admin' ? (formData.areaId === 'none' ? null : formData.areaId) : 
+                  (formData.areaId === 'none' ? null : formData.areaId))
         })
         .eq('id', editingUser.id);
 
@@ -367,8 +377,12 @@ export default function UserManagement() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="user">User</SelectItem>
-                    <SelectItem value="area_admin">Area Admin</SelectItem>
-                    <SelectItem value="client_admin">Client Admin</SelectItem>
+                    {profile?.role === 'client_admin' && (
+                      <>
+                        <SelectItem value="area_admin">Area Admin</SelectItem>
+                        <SelectItem value="client_admin">Client Admin</SelectItem>
+                      </>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -378,17 +392,20 @@ export default function UserManagement() {
                   <Select 
                     value={formData.areaId} 
                     onValueChange={(value) => setFormData(prev => ({ ...prev, areaId: value }))}
+                    disabled={profile?.role === 'area_admin'}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select an area" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">No specific area</SelectItem>
-                      {areas.map((area) => (
-                        <SelectItem key={area.id} value={area.id}>
-                          {area.name}
-                        </SelectItem>
-                      ))}
+                      {profile?.role === 'client_admin' && <SelectItem value="none">No specific area</SelectItem>}
+                      {areas
+                        .filter(area => profile?.role === 'client_admin' || area.id === profile?.area_id)
+                        .map((area) => (
+                          <SelectItem key={area.id} value={area.id}>
+                            {area.name}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -411,7 +428,10 @@ export default function UserManagement() {
             Users ({users.length})
           </CardTitle>
           <CardDescription>
-            Manage all users in your organization
+            {profile?.role === 'area_admin' 
+              ? 'Manage users in your area' 
+              : 'Manage all users in your organization'
+            }
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -547,8 +567,12 @@ export default function UserManagement() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="user">User</SelectItem>
-                  <SelectItem value="area_admin">Area Admin</SelectItem>
-                  <SelectItem value="client_admin">Client Admin</SelectItem>
+                  {profile?.role === 'client_admin' && (
+                    <>
+                      <SelectItem value="area_admin">Area Admin</SelectItem>
+                      <SelectItem value="client_admin">Client Admin</SelectItem>
+                    </>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -558,17 +582,20 @@ export default function UserManagement() {
                 <Select 
                   value={formData.areaId} 
                   onValueChange={(value) => setFormData(prev => ({ ...prev, areaId: value }))}
+                  disabled={profile?.role === 'area_admin'}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select an area" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">No specific area</SelectItem>
-                    {areas.map((area) => (
-                      <SelectItem key={area.id} value={area.id}>
-                        {area.name}
-                      </SelectItem>
-                    ))}
+                    {profile?.role === 'client_admin' && <SelectItem value="none">No specific area</SelectItem>}
+                    {areas
+                      .filter(area => profile?.role === 'client_admin' || area.id === profile?.area_id)
+                      .map((area) => (
+                        <SelectItem key={area.id} value={area.id}>
+                          {area.name}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
