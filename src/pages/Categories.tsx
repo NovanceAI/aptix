@@ -335,38 +335,44 @@ export default function Categories() {
           </p>
         </div>
         <div className="flex items-center gap-4">
-          {/* Show area filter for client admins and area admins */}
-          <Select 
-            value={selectedArea} 
-            onValueChange={profile?.role === 'client_admin' || profile?.role === 'area_admin' ? setSelectedArea : undefined}
-            disabled={profile?.role === 'user'}
-          >
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Filter by area" />
-            </SelectTrigger>
-            <SelectContent>
-              {profile?.role === 'client_admin' && (
-                <>
-                  <SelectItem value="all">All Areas</SelectItem>
-                  <SelectItem value="unassigned">Unassigned</SelectItem>
-                </>
-              )}
-              {areas
-                .filter(area => {
-                  // For client admins, show all areas
-                  if (profile?.role === 'client_admin') return true;
-                  // For area admins, only show areas they have admin permissions for
-                  if (profile?.role === 'area_admin') return userAreaPermissions.includes(area.id);
-                  // For users, show their assigned area only
-                  return profile?.area_id === area.id;
-                })
-                .map((area) => (
-                  <SelectItem key={area.id} value={area.id}>
-                    {area.name}
-                  </SelectItem>
-                ))}
-            </SelectContent>
-          </Select>
+          {/* Area display/filter - different UI based on role */}
+          {profile?.role === 'area_admin' ? (
+            // For area admins: read-only display of their area
+            <div className="w-48 px-3 py-2 border border-input bg-muted rounded-md text-sm">
+              {areas.find(area => userAreaPermissions.includes(area.id))?.name || 'Loading...'}
+            </div>
+          ) : (
+            // For client admins: interactive filter
+            <Select 
+              value={selectedArea} 
+              onValueChange={profile?.role === 'client_admin' ? setSelectedArea : undefined}
+              disabled={profile?.role === 'user'}
+            >
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Filter by area" />
+              </SelectTrigger>
+              <SelectContent>
+                {profile?.role === 'client_admin' && (
+                  <>
+                    <SelectItem value="all">All Areas</SelectItem>
+                    <SelectItem value="unassigned">Unassigned</SelectItem>
+                  </>
+                )}
+                {areas
+                  .filter(area => {
+                    // For client admins, show all areas
+                    if (profile?.role === 'client_admin') return true;
+                    // For users, show their assigned area only
+                    return profile?.area_id === area.id;
+                  })
+                  .map((area) => (
+                    <SelectItem key={area.id} value={area.id}>
+                      {area.name}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          )}
           {canCreateCriteria() && (
             <Button onClick={openNewDialog}>
               <Plus className="h-4 w-4 mr-2" />
