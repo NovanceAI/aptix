@@ -17,7 +17,8 @@ import {
   Edit, 
   Trash2, 
   Target,
-  Building
+  Building,
+  Shield
 } from "lucide-react";
 
 interface EvaluationCriteria {
@@ -45,22 +46,38 @@ interface CriteriaForm {
 }
 
 export default function Categories() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [criteria, setCriteria] = useState<EvaluationCriteria[]>([]);
   const [areas, setAreas] = useState<Area[]>([]);
   const [selectedArea, setSelectedArea] = useState<string>("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCriteria, setEditingCriteria] = useState<EvaluationCriteria | null>(null);
+  const [userAreaPermissions, setUserAreaPermissions] = useState<string[]>([]);
   const { toast } = useToast();
 
   const form = useForm<CriteriaForm>();
 
+  // Check if user can edit criteria (client admin or area admin for specific area)
+  const canEditCriteria = (criteria: EvaluationCriteria) => {
+    if (!profile) return false;
+    if (profile.role === 'client_admin') return true;
+    if (criteria.area_id && userAreaPermissions.includes(criteria.area_id)) return true;
+    return false;
+  };
+
+  // Check if user can create criteria
+  const canCreateCriteria = () => {
+    if (!profile) return false;
+    return profile.role === 'client_admin' || userAreaPermissions.length > 0;
+  };
+
   useEffect(() => {
-    if (user) {
+    if (user && profile) {
       fetchCriteria();
       fetchAreas();
+      fetchUserAreaPermissions();
     }
-  }, [user]);
+  }, [user, profile]);
 
   const fetchCriteria = async () => {
     const { data, error } = await supabase
@@ -83,10 +100,29 @@ export default function Categories() {
   };
 
   const fetchAreas = async () => {
-    const { data, error } = await supabase
+    let query = supabase
       .from('areas')
       .select('*')
       .order('name', { ascending: true });
+
+    // If user is not client admin, filter areas based on their permissions
+    if (profile?.role !== 'client_admin') {
+      const { data: permissions } = await supabase
+        .from('area_permissions')
+        .select('area_id')
+        .eq('user_id', user?.id);
+      
+      if (permissions && permissions.length > 0) {
+        const areaIds = permissions.map(p => p.area_id);
+        query = query.in('id', areaIds);
+      } else {
+        // No permissions, return empty array
+        setAreas([]);
+        return;
+      }
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       toast({
@@ -96,6 +132,23 @@ export default function Categories() {
       });
     } else {
       setAreas(data || []);
+    }
+  };
+
+  const fetchUserAreaPermissions = async () => {
+    if (!user || profile?.role === 'client_admin') {
+      // Client admins have access to all areas
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('area_permissions')
+      .select('area_id')
+      .eq('user_id', user.id)
+      .eq('permission_level', 'admin');
+
+    if (!error && data) {
+      setUserAreaPermissions(data.map(p => p.area_id));
     }
   };
 
@@ -191,11 +244,30 @@ export default function Categories() {
     setIsDialogOpen(true);
   };
 
-  const filteredCriteria = selectedArea === "all" 
-    ? criteria 
-    : selectedArea === ""
-    ? criteria.filter(c => !c.area_id)
-    : criteria.filter(c => c.area_id === selectedArea);
+  // Filter criteria based on selected area and user permissions
+  const getFilteredCriteria = () => {
+    let filtered = criteria;
+
+    // Apply area filter
+    if (selectedArea === "all") {
+      filtered = criteria;
+    } else if (selectedArea === "") {
+      filtered = criteria.filter(c => !c.area_id);
+    } else {
+      filtered = criteria.filter(c => c.area_id === selectedArea);
+    }
+
+    // For non-client admins, only show criteria they can access
+    if (profile?.role !== 'client_admin') {
+      filtered = filtered.filter(c => 
+        !c.area_id || userAreaPermissions.includes(c.area_id)
+      );
+    }
+
+    return filtered;
+  };
+
+  const filteredCriteria = getFilteredCriteria();
 
   return (
     <div className="space-y-8">
@@ -225,10 +297,12 @@ export default function Categories() {
               ))}
             </SelectContent>
           </Select>
-          <Button onClick={openNewDialog}>
-            <Plus className="h-4 w-4 mr-2" />
-            New Criteria
-          </Button>
+          {canCreateCriteria() && (
+            <Button onClick={openNewDialog}>
+              <Plus className="h-4 w-4 mr-2" />
+              New Criteria
+            </Button>
+          )}
         </div>
       </div>
 
@@ -274,20 +348,29 @@ export default function Categories() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openEditDialog(criterion)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDelete(criterion.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {canEditCriteria(criterion) ? (
+                          <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openEditDialog(criterion)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDelete(criterion.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        ) : (
+                          <Badge variant="secondary" className="flex items-center gap-1">
+                            <Shield className="h-3 w-3" />
+                            Read-only
+                          </Badge>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -344,7 +427,9 @@ export default function Categories() {
                   <SelectValue placeholder="Select an area" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">No specific area</SelectItem>
+                  {profile?.role === 'client_admin' && (
+                    <SelectItem value="none">No specific area</SelectItem>
+                  )}
                   {areas.map((area) => (
                     <SelectItem key={area.id} value={area.id}>
                       {area.name}
