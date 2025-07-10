@@ -56,6 +56,7 @@ interface Area {
   id: string;
   name: string;
   description: string;
+  client_id: string;
 }
 
 interface UserFormData {
@@ -65,6 +66,7 @@ interface UserFormData {
   role: 'user' | 'client_admin' | 'area_admin';
   areaId: string;
   password?: string;
+  clientId?: string;
 }
 
 export default function UserManagement() {
@@ -84,15 +86,17 @@ export default function UserManagement() {
     lastName: '',
     role: 'user',
     areaId: 'none',
-    password: ''
+    password: '',
+    clientId: ''
   });
+  const [clients, setClients] = useState<{id: string, name: string}[]>([]);
 
-  // Allow client admins and area admins
-  if (profile?.role !== 'client_admin' && profile?.role !== 'area_admin') {
+  // Allow client admins, area admins, and super admins
+  if (profile?.role !== 'client_admin' && profile?.role !== 'area_admin' && profile?.role !== 'super_admin') {
     return (
       <div className="p-8 text-center">
         <h1 className="text-2xl font-bold text-muted-foreground">Access Denied</h1>
-        <p className="text-muted-foreground">Only client administrators and area administrators can access this page.</p>
+        <p className="text-muted-foreground">Only client administrators, area administrators, and super administrators can access this page.</p>
       </div>
     );
   }
@@ -100,7 +104,10 @@ export default function UserManagement() {
   useEffect(() => {
     fetchUsers();
     fetchAreas();
-  }, [profile?.client_id]);
+    if (profile?.role === 'super_admin') {
+      fetchClients();
+    }
+  }, [profile?.client_id, profile?.role]);
 
   const fetchUsers = async () => {
     try {
@@ -113,14 +120,20 @@ export default function UserManagement() {
           last_name, 
           role, 
           area_id, 
+          client_id,
           created_at,
           area:areas(name)
-        `)
-        .eq('client_id', profile.client_id);
+        `);
 
-      // If user is area admin, only show users in their area
-      if (profile?.role === 'area_admin') {
-        query = query.eq('area_id', profile.area_id);
+      // Super admin sees all users
+      if (profile?.role === 'super_admin') {
+        // No client filter for super admin
+      } else if (profile?.role === 'area_admin') {
+        // Area admin sees only users in their area
+        query = query.eq('client_id', profile.client_id).eq('area_id', profile.area_id);
+      } else {
+        // Client admin sees all users in their client
+        query = query.eq('client_id', profile.client_id);
       }
 
       const { data, error } = await query.order('created_at', { ascending: false });
@@ -141,10 +154,16 @@ export default function UserManagement() {
 
   const fetchAreas = async () => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('areas')
-        .select('*')
-        .order('name', { ascending: true });
+        .select('*');
+
+      // Super admin gets all areas, others get only their client's areas
+      if (profile?.role !== 'super_admin') {
+        query = query.eq('client_id', profile.client_id);
+      }
+
+      const { data, error } = await query.order('name', { ascending: true });
 
       if (error) throw error;
       setAreas(data || []);
@@ -158,6 +177,25 @@ export default function UserManagement() {
     }
   };
 
+  const fetchClients = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('clients')
+        .select('id, name')
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+      setClients(data || []);
+    } catch (error) {
+      console.error('Error fetching clients:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch clients",
+        variant: "destructive",
+      });
+    }
+  };
+
   const resetForm = () => {
     setFormData({
       email: '',
@@ -165,7 +203,8 @@ export default function UserManagement() {
       lastName: '',
       role: 'user',
       areaId: profile?.role === 'area_admin' ? profile.area_id || 'none' : 'none',
-      password: ''
+      password: '',
+      clientId: profile?.role === 'super_admin' ? '' : profile?.client_id || ''
     });
     setEditingUser(null);
   };
@@ -200,7 +239,7 @@ export default function UserManagement() {
             area_id: formData.role === 'client_admin' ? null : 
                     (formData.role === 'area_admin' ? (formData.areaId === 'none' ? null : formData.areaId) : 
                     (formData.areaId === 'none' ? null : formData.areaId)),
-            client_id: profile.client_id
+            client_id: profile?.role === 'super_admin' ? formData.clientId : profile.client_id
           });
 
         if (profileError) throw profileError;
@@ -379,48 +418,161 @@ export default function UserManagement() {
         </TabsList>
 
         <TabsContent value="users" className="space-y-6">
-          {/* Invitation URL Card */}
-          <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Link className="h-5 w-5 text-blue-600" />
-                Invite {profile?.role === 'client_admin' ? 'Area Admins' : 'Employees'}
-              </CardTitle>
-              <CardDescription>
-                {profile?.role === 'client_admin' 
-                  ? 'Send invitation links to new Area Admins for your organization'
-                  : 'Send invitation links to new employees for your area'
-                }
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between p-4 bg-white rounded-lg border border-blue-200">
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900 mb-1">
-                    Quick Invitation Link
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    Generate and copy an invitation link to paste directly into your email
-                  </p>
+          {/* Super Admin Create User Form */}
+          {profile?.role === 'super_admin' && (
+            <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <UserPlus className="h-5 w-5 text-green-600" />
+                  Create User Directly
+                </CardTitle>
+                <CardDescription>
+                  As a Super Admin, you can create users directly without needing invitations
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+                  <div>
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      placeholder="user@example.com"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="firstName">First Name</Label>
+                    <Input
+                      id="firstName"
+                      value={formData.firstName}
+                      onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                      placeholder="John"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="lastName">Last Name</Label>
+                    <Input
+                      id="lastName"
+                      value={formData.lastName}
+                      onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                      placeholder="Doe"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="password">Password</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      placeholder="Temporary password"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="client">Client</Label>
+                    <Select value={formData.clientId} onValueChange={(value) => setFormData({ ...formData, clientId: value })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select client" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {clients.map((client) => (
+                          <SelectItem key={client.id} value={client.id}>
+                            {client.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="role">Role</Label>
+                    <Select value={formData.role} onValueChange={(value) => setFormData({ ...formData, role: value as 'user' | 'client_admin' | 'area_admin' })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="user">User</SelectItem>
+                        <SelectItem value="area_admin">Area Admin</SelectItem>
+                        <SelectItem value="client_admin">Client Admin</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {formData.role !== 'client_admin' && (
+                    <div>
+                      <Label htmlFor="area">Area</Label>
+                      <Select value={formData.areaId} onValueChange={(value) => setFormData({ ...formData, areaId: value })}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select area" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">No Area</SelectItem>
+                          {areas.filter(area => formData.clientId ? area.client_id === formData.clientId : true).map((area) => (
+                            <SelectItem key={area.id} value={area.id}>
+                              {area.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                 </div>
                 <Button 
-                  onClick={createAndCopyInvitationLink}
-                  className="ml-4"
-                  size="sm"
-                  disabled={inviteLoading}
+                  onClick={handleAddUser}
+                  disabled={!formData.email || !formData.firstName || !formData.lastName || !formData.password || !formData.clientId}
+                  className="w-full md:w-auto"
                 >
-                  <Copy className="h-4 w-4 mr-2" />
-                  {inviteLoading ? 'Creating...' : 'Copy Link'}
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Create User
                 </Button>
-              </div>
-              <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                <p className="text-xs text-blue-700 mb-1">How it works:</p>
-                <p className="text-sm text-blue-800">
-                  Click "Copy Link" → Paste into email → Send to {profile?.role === 'client_admin' ? 'Area Admin' : 'employee'} → They complete signup with the link
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Invitation URL Card - Only show for non-super-admins */}
+          {profile?.role !== 'super_admin' && (
+            <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Link className="h-5 w-5 text-blue-600" />
+                  Invite {profile?.role === 'client_admin' ? 'Area Admins' : 'Employees'}
+                </CardTitle>
+                <CardDescription>
+                  {profile?.role === 'client_admin' 
+                    ? 'Send invitation links to new Area Admins for your organization'
+                    : 'Send invitation links to new employees for your area'
+                  }
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between p-4 bg-white rounded-lg border border-blue-200">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-900 mb-1">
+                      Quick Invitation Link
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      Generate and copy an invitation link to paste directly into your email
+                    </p>
+                  </div>
+                  <Button 
+                    onClick={createAndCopyInvitationLink}
+                    className="ml-4"
+                    size="sm"
+                    disabled={inviteLoading}
+                  >
+                    <Copy className="h-4 w-4 mr-2" />
+                    {inviteLoading ? 'Creating...' : 'Copy Link'}
+                  </Button>
+                </div>
+                <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <p className="text-xs text-blue-700 mb-1">How it works:</p>
+                  <p className="text-sm text-blue-800">
+                    Click "Copy Link" → Paste into email → Send to {profile?.role === 'client_admin' ? 'Area Admin' : 'employee'} → They complete signup with the link
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
