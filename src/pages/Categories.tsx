@@ -251,7 +251,7 @@ export default function Categories() {
     // Apply area filter
     if (selectedArea === "all") {
       filtered = criteria;
-    } else if (selectedArea === "") {
+    } else if (selectedArea === "unassigned") {
       filtered = criteria.filter(c => !c.area_id);
     } else {
       filtered = criteria.filter(c => c.area_id === selectedArea);
@@ -289,7 +289,7 @@ export default function Categories() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Areas</SelectItem>
-              <SelectItem value="">Unassigned</SelectItem>
+              <SelectItem value="unassigned">Unassigned</SelectItem>
               {areas.map((area) => (
                 <SelectItem key={area.id} value={area.id}>
                   {area.name}
