@@ -42,7 +42,6 @@ interface EvaluationPeriod {
 interface PeriodForm {
   name: string;
   description: string;
-  frequency: 'monthly' | 'quarterly' | 'yearly';
   start_date: Date;
   end_date: Date;
   status: 'draft' | 'active' | 'completed';
@@ -59,7 +58,6 @@ export default function EvaluationPeriods() {
     defaultValues: {
       name: '',
       description: '',
-      frequency: 'quarterly',
       status: 'draft'
     }
   });
@@ -107,7 +105,7 @@ export default function EvaluationPeriods() {
         .insert({
           name: data.name,
           description: data.description || null,
-          frequency: data.frequency,
+          frequency: 'custom', // Default value since dates define the period
           start_date: format(data.start_date, 'yyyy-MM-dd'),
           end_date: format(data.end_date, 'yyyy-MM-dd'),
           status: data.status,
@@ -143,7 +141,7 @@ export default function EvaluationPeriods() {
         .update({
           name: data.name,
           description: data.description || null,
-          frequency: data.frequency,
+          frequency: 'custom', // Default value since dates define the period
           start_date: format(data.start_date, 'yyyy-MM-dd'),
           end_date: format(data.end_date, 'yyyy-MM-dd'),
           status: data.status
@@ -200,7 +198,6 @@ export default function EvaluationPeriods() {
     setEditingPeriod(period);
     form.setValue('name', period.name);
     form.setValue('description', period.description || '');
-    form.setValue('frequency', period.frequency);
     form.setValue('start_date', new Date(period.start_date));
     form.setValue('end_date', new Date(period.end_date));
     form.setValue('status', period.status);
@@ -351,33 +348,13 @@ export default function EvaluationPeriods() {
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={form.handleSubmit(editingPeriod ? handleUpdate : handleCreate)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="name">Period Name</Label>
-                <Input
-                  id="name"
-                  {...form.register('name', { required: 'Period name is required' })}
-                  placeholder="e.g., Q1 2024 Performance Review"
-                />
-              </div>
-              <div>
-                <Label htmlFor="frequency">Frequency</Label>
-                <Select 
-                  value={form.watch('frequency')} 
-                  onValueChange={(value: 'monthly' | 'quarterly' | 'yearly') => 
-                    form.setValue('frequency', value)
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select frequency" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="monthly">Monthly</SelectItem>
-                    <SelectItem value="quarterly">Quarterly</SelectItem>
-                    <SelectItem value="yearly">Yearly</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div>
+              <Label htmlFor="name">Period Name</Label>
+              <Input
+                id="name"
+                {...form.register('name', { required: 'Period name is required' })}
+                placeholder="e.g., Q1 2024 Performance Review"
+              />
             </div>
             
             <div>
