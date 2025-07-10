@@ -13,6 +13,7 @@ import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
 import SuperAdmin from "./pages/SuperAdmin";
 import UserManagement from "./pages/UserManagement";
+import Areas from "./pages/Areas";
 
 const queryClient = new QueryClient();
 
@@ -86,6 +87,14 @@ function AppContent() {
               <UserManagement />
             </ProtectedRoute>
           } 
+        />
+        <Route 
+          path="/areas" 
+          element={
+            <ProtectedRoute requiredRole="client_admin">
+              <Areas />
+            </ProtectedRoute>
+          }
         />
         <Route 
           path="/super-admin" 

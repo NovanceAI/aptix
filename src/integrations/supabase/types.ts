@@ -14,6 +14,79 @@ export type Database = {
   }
   public: {
     Tables: {
+      area_permissions: {
+        Row: {
+          area_id: string
+          created_at: string
+          granted_by: string | null
+          id: string
+          permission_level: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          area_id: string
+          created_at?: string
+          granted_by?: string | null
+          id?: string
+          permission_level: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          area_id?: string
+          created_at?: string
+          granted_by?: string | null
+          id?: string
+          permission_level?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "area_permissions_area_id_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "areas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      areas: {
+        Row: {
+          client_id: string
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "areas_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_email_domains: {
         Row: {
           client_id: string
@@ -69,6 +142,7 @@ export type Database = {
       }
       evaluation_criteria: {
         Row: {
+          area_id: string | null
           client_id: string | null
           created_at: string
           description: string | null
@@ -77,6 +151,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          area_id?: string | null
           client_id?: string | null
           created_at?: string
           description?: string | null
@@ -85,6 +160,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          area_id?: string | null
           client_id?: string | null
           created_at?: string
           description?: string | null
@@ -93,6 +169,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "evaluation_criteria_area_id_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "areas"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "evaluation_criteria_client_id_fkey"
             columns: ["client_id"]
@@ -149,6 +232,7 @@ export type Database = {
       }
       evaluations: {
         Row: {
+          area_id: string | null
           client_id: string
           completed_at: string | null
           created_at: string
@@ -162,6 +246,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          area_id?: string | null
           client_id: string
           completed_at?: string | null
           created_at?: string
@@ -175,6 +260,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          area_id?: string | null
           client_id?: string
           completed_at?: string | null
           created_at?: string
@@ -188,6 +274,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "evaluations_area_id_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "areas"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "evaluations_client_id_fkey"
             columns: ["client_id"]
@@ -243,6 +336,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_user_area_permission: {
+        Args: { user_id: string; area_id: string }
+        Returns: string
+      }
       get_user_client_id: {
         Args: { user_id: string }
         Returns: string
@@ -250,6 +347,10 @@ export type Database = {
       get_user_role: {
         Args: { user_id: string }
         Returns: Database["public"]["Enums"]["user_role"]
+      }
+      is_area_admin: {
+        Args: { user_id: string; area_id: string }
+        Returns: boolean
       }
     }
     Enums: {

@@ -6,7 +6,8 @@ import {
   Award,
   Target,
   Shield,
-  UserCog
+  UserCog,
+  Building
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { NavLink } from "react-router-dom";
@@ -85,24 +86,44 @@ export function NavigationSidebar() {
               
               {/* Client Admin Section */}
               {profile?.role === 'client_admin' && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <NavLink
-                      to="/user-management"
-                      className={({ isActive }) =>
-                        cn(
-                          "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
-                          isActive
-                            ? "bg-primary text-primary-foreground"
-                            : "hover:bg-accent"
-                        )
-                      }
-                    >
-                      <UserCog className="h-4 w-4" />
-                      {!isCollapsed && <span>User Management</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                <>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild>
+                      <NavLink
+                        to="/areas"
+                        className={({ isActive }) =>
+                          cn(
+                            "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+                            isActive
+                              ? "bg-primary text-primary-foreground"
+                              : "hover:bg-accent"
+                          )
+                        }
+                      >
+                        <Building className="h-4 w-4" />
+                        {!isCollapsed && <span>Areas</span>}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild>
+                      <NavLink
+                        to="/user-management"
+                        className={({ isActive }) =>
+                          cn(
+                            "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+                            isActive
+                              ? "bg-primary text-primary-foreground"
+                              : "hover:bg-accent"
+                          )
+                        }
+                      >
+                        <UserCog className="h-4 w-4" />
+                        {!isCollapsed && <span>User Management</span>}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </>
               )}
               
               {/* Super Admin Section */}

@@ -1,375 +1,369 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useEffect } from "react";
+import { useForm } from 'react-hook-form';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 import { 
   Plus, 
   Edit, 
   Trash2, 
   Target,
-  Weight,
-  FileText
+  Building
 } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 
-interface Criteria {
+interface EvaluationCriteria {
   id: string;
   name: string;
   description: string;
-  weight: number;
+  client_id: string;
+  area_id: string | null;
+  created_at: string;
+  area?: {
+    name: string;
+  };
 }
 
-interface Category {
+interface Area {
   id: string;
   name: string;
   description: string;
-  criteria: Criteria[];
 }
 
-const mockCategories: Category[] = [
-  {
-    id: "1",
-    name: "Technical Skills",
-    description: "Assessment of technical competencies and expertise",
-    criteria: [
-      {
-        id: "1-1",
-        name: "Code Quality",
-        description: "Writing clean, maintainable, and efficient code",
-        weight: 30
-      },
-      {
-        id: "1-2",
-        name: "Problem Solving",
-        description: "Ability to solve complex technical problems",
-        weight: 25
-      },
-      {
-        id: "1-3",
-        name: "Learning Agility",
-        description: "Adapting to new technologies and methodologies",
-        weight: 20
-      }
-    ]
-  },
-  {
-    id: "2",
-    name: "Communication",
-    description: "Interpersonal and communication abilities",
-    criteria: [
-      {
-        id: "2-1",
-        name: "Written Communication",
-        description: "Clear and effective written communication",
-        weight: 20
-      },
-      {
-        id: "2-2",
-        name: "Verbal Communication",
-        description: "Clear and effective verbal communication",
-        weight: 25
-      }
-    ]
-  }
-];
+interface CriteriaForm {
+  name: string;
+  description: string;
+  areaId: string;
+}
 
 export default function Categories() {
-  const [categories, setCategories] = useState<Category[]>(mockCategories);
-  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
-  const [isAddingCategory, setIsAddingCategory] = useState(false);
-  const [isAddingCriteria, setIsAddingCriteria] = useState(false);
+  const { user } = useAuth();
+  const [criteria, setCriteria] = useState<EvaluationCriteria[]>([]);
+  const [areas, setAreas] = useState<Area[]>([]);
+  const [selectedArea, setSelectedArea] = useState<string>("all");
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingCriteria, setEditingCriteria] = useState<EvaluationCriteria | null>(null);
+  const { toast } = useToast();
 
-  const [newCategory, setNewCategory] = useState({
-    name: "",
-    description: ""
-  });
+  const form = useForm<CriteriaForm>();
 
-  const [newCriteria, setNewCriteria] = useState({
-    name: "",
-    description: "",
-    weight: 20
-  });
-
-  const handleAddCategory = () => {
-    if (newCategory.name.trim()) {
-      const category: Category = {
-        id: Date.now().toString(),
-        name: newCategory.name,
-        description: newCategory.description,
-        criteria: []
-      };
-      setCategories([...categories, category]);
-      setNewCategory({ name: "", description: "" });
-      setIsAddingCategory(false);
+  useEffect(() => {
+    if (user) {
+      fetchCriteria();
+      fetchAreas();
     }
-  };
+  }, [user]);
 
-  const handleAddCriteria = () => {
-    if (selectedCategory && newCriteria.name.trim()) {
-      const criteria: Criteria = {
-        id: Date.now().toString(),
-        name: newCriteria.name,
-        description: newCriteria.description,
-        weight: newCriteria.weight
-      };
-      
-      const updatedCategories = categories.map(cat =>
-        cat.id === selectedCategory.id
-          ? { ...cat, criteria: [...cat.criteria, criteria] }
-          : cat
-      );
-      
-      setCategories(updatedCategories);
-      setSelectedCategory({
-        ...selectedCategory,
-        criteria: [...selectedCategory.criteria, criteria]
+  const fetchCriteria = async () => {
+    const { data, error } = await supabase
+      .from('evaluation_criteria')
+      .select(`
+        *,
+        areas(name)
+      `)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch criteria",
+        variant: "destructive",
       });
-      setNewCriteria({ name: "", description: "", weight: 20 });
-      setIsAddingCriteria(false);
+    } else {
+      setCriteria(data || []);
     }
   };
 
-  const getTotalWeight = (criteria: Criteria[]) => {
-    return criteria.reduce((sum, criterion) => sum + criterion.weight, 0);
+  const fetchAreas = async () => {
+    const { data, error } = await supabase
+      .from('areas')
+      .select('*')
+      .order('name', { ascending: true });
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch areas",
+        variant: "destructive",
+      });
+    } else {
+      setAreas(data || []);
+    }
   };
+
+  const handleCreate = async (data: CriteriaForm) => {
+    const { error } = await supabase
+      .from('evaluation_criteria')
+      .insert({
+        name: data.name,
+        description: data.description,
+        area_id: data.areaId === "none" ? null : data.areaId
+      });
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Success",
+        description: "Criteria created successfully",
+      });
+      setIsDialogOpen(false);
+      form.reset();
+      fetchCriteria();
+    }
+  };
+
+  const handleUpdate = async (data: CriteriaForm) => {
+    if (!editingCriteria) return;
+
+    const { error } = await supabase
+      .from('evaluation_criteria')
+      .update({
+        name: data.name,
+        description: data.description,
+        area_id: data.areaId === "none" ? null : data.areaId
+      })
+      .eq('id', editingCriteria.id);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Success",
+        description: "Criteria updated successfully",
+      });
+      setIsDialogOpen(false);
+      setEditingCriteria(null);
+      form.reset();
+      fetchCriteria();
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    const { error } = await supabase
+      .from('evaluation_criteria')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Success",
+        description: "Criteria deleted successfully",
+      });
+      fetchCriteria();
+    }
+  };
+
+  const openEditDialog = (criteria: EvaluationCriteria) => {
+    setEditingCriteria(criteria);
+    form.setValue('name', criteria.name);
+    form.setValue('description', criteria.description);
+    form.setValue('areaId', criteria.area_id || "none");
+    setIsDialogOpen(true);
+  };
+
+  const openNewDialog = () => {
+    setEditingCriteria(null);
+    form.reset();
+    form.setValue('areaId', "none");
+    setIsDialogOpen(true);
+  };
+
+  const filteredCriteria = selectedArea === "all" 
+    ? criteria 
+    : selectedArea === ""
+    ? criteria.filter(c => !c.area_id)
+    : criteria.filter(c => c.area_id === selectedArea);
 
   return (
     <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Review Categories</h1>
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <Target className="h-8 w-8 text-primary" />
+            Evaluation Criteria
+          </h1>
           <p className="text-muted-foreground">
-            Manage categories and criteria for performance reviews
+            Manage criteria used for performance evaluations
           </p>
         </div>
-        <Dialog open={isAddingCategory} onOpenChange={setIsAddingCategory}>
-          <DialogTrigger asChild>
-            <Button className="bg-gradient-primary shadow-elegant">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Category
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add New Category</DialogTitle>
-              <DialogDescription>
-                Create a new category for performance evaluation
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="category-name">Category Name</Label>
-                <Input
-                  id="category-name"
-                  value={newCategory.name}
-                  onChange={(e) => setNewCategory({...newCategory, name: e.target.value})}
-                  placeholder="e.g., Technical Skills"
-                />
-              </div>
-              <div>
-                <Label htmlFor="category-description">Description</Label>
-                <Textarea
-                  id="category-description"
-                  value={newCategory.description}
-                  onChange={(e) => setNewCategory({...newCategory, description: e.target.value})}
-                  placeholder="Brief description of this category"
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button onClick={handleAddCategory} className="flex-1">
-                  Create Category
-                </Button>
-                <Button variant="outline" onClick={() => setIsAddingCategory(false)}>
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      {/* Categories Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {categories.map((category) => (
-          <Card 
-            key={category.id} 
-            className={`shadow-card hover:shadow-elegant transition-shadow duration-300 cursor-pointer ${
-              selectedCategory?.id === category.id ? 'ring-2 ring-primary' : ''
-            }`}
-            onClick={() => setSelectedCategory(category)}
-          >
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Target className="h-5 w-5 text-primary" />
-                    {category.name}
-                  </CardTitle>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {category.description}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="ghost" size="icon">
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon">
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Criteria</span>
-                  <Badge variant="outline">
-                    {category.criteria.length} items
-                  </Badge>
-                </div>
-                
-                {category.criteria.length > 0 && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Weight className="h-4 w-4" />
-                    <span>Total Weight: {getTotalWeight(category.criteria)}%</span>
-                  </div>
-                )}
-
-                <div className="space-y-2">
-                  {category.criteria.slice(0, 3).map((criteria) => (
-                    <div key={criteria.id} className="flex items-center justify-between p-2 bg-muted rounded">
-                      <span className="text-sm">{criteria.name}</span>
-                      <Badge variant="secondary" className="text-xs">
-                        {criteria.weight}%
-                      </Badge>
-                    </div>
-                  ))}
-                  {category.criteria.length > 3 && (
-                    <div className="text-center text-sm text-muted-foreground">
-                      +{category.criteria.length - 3} more
-                    </div>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Selected Category Details */}
-      {selectedCategory && (
-        <Card className="shadow-card">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                {selectedCategory.name} - Criteria Details
-              </CardTitle>
-              <Dialog open={isAddingCriteria} onOpenChange={setIsAddingCriteria}>
-                <DialogTrigger asChild>
-                  <Button variant="outline">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Criteria
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Add New Criteria</DialogTitle>
-                    <DialogDescription>
-                      Add a new criteria to {selectedCategory.name}
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="criteria-name">Criteria Name</Label>
-                      <Input
-                        id="criteria-name"
-                        value={newCriteria.name}
-                        onChange={(e) => setNewCriteria({...newCriteria, name: e.target.value})}
-                        placeholder="e.g., Code Quality"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="criteria-description">Description</Label>
-                      <Textarea
-                        id="criteria-description"
-                        value={newCriteria.description}
-                        onChange={(e) => setNewCriteria({...newCriteria, description: e.target.value})}
-                        placeholder="Description of this criteria"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="criteria-weight">Weight (%)</Label>
-                      <Input
-                        id="criteria-weight"
-                        type="number"
-                        min="1"
-                        max="100"
-                        value={newCriteria.weight}
-                        onChange={(e) => setNewCriteria({...newCriteria, weight: parseInt(e.target.value) || 0})}
-                      />
-                    </div>
-                    <div className="flex gap-2">
-                      <Button onClick={handleAddCriteria} className="flex-1">
-                        Add Criteria
-                      </Button>
-                      <Button variant="outline" onClick={() => setIsAddingCriteria(false)}>
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {selectedCategory.criteria.map((criteria) => (
-                <Card key={criteria.id} className="p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h4 className="font-medium">{criteria.name}</h4>
-                        <Badge variant="outline">{criteria.weight}%</Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        {criteria.description}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button variant="ghost" size="icon">
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
+        <div className="flex items-center gap-4">
+          <Select value={selectedArea} onValueChange={setSelectedArea}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Filter by area" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Areas</SelectItem>
+              <SelectItem value="">Unassigned</SelectItem>
+              {areas.map((area) => (
+                <SelectItem key={area.id} value={area.id}>
+                  {area.name}
+                </SelectItem>
               ))}
-              
-              {selectedCategory.criteria.length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Target className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No criteria added yet</p>
-                  <p className="text-sm">Add criteria to start building this category</p>
-                </div>
-              )}
+            </SelectContent>
+          </Select>
+          <Button onClick={openNewDialog}>
+            <Plus className="h-4 w-4 mr-2" />
+            New Criteria
+          </Button>
+        </div>
+      </div>
+
+      {/* Criteria Grid */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Evaluation Criteria</CardTitle>
+          <CardDescription>
+            Criteria used to evaluate performance across different areas
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {filteredCriteria.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead>Area</TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredCriteria.map((criterion) => (
+                  <TableRow key={criterion.id}>
+                    <TableCell className="font-medium">{criterion.name}</TableCell>
+                    <TableCell className="max-w-md">
+                      <p className="truncate">{criterion.description}</p>
+                    </TableCell>
+                    <TableCell>
+                      {criterion.area ? (
+                        <Badge variant="outline" className="flex items-center gap-1">
+                          <Building className="h-3 w-3" />
+                          {criterion.area.name}
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary">Unassigned</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {new Date(criterion.created_at).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openEditDialog(criterion)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDelete(criterion.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <Target className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>No criteria found</p>
+              <p className="text-sm">Create your first evaluation criteria to get started</p>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Criteria Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {editingCriteria ? 'Edit Criteria' : 'Create New Criteria'}
+            </DialogTitle>
+            <DialogDescription>
+              {editingCriteria 
+                ? 'Update the criteria details' 
+                : 'Add a new criteria for performance evaluation'}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={form.handleSubmit(editingCriteria ? handleUpdate : handleCreate)} className="space-y-4">
+            <div>
+              <Label htmlFor="name">Criteria Name</Label>
+              <Input
+                id="name"
+                {...form.register('name', { required: 'Criteria name is required' })}
+                placeholder="e.g., Communication Skills, Technical Proficiency"
+              />
+            </div>
+            <div>
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                {...form.register('description')}
+                placeholder="Describe what this criteria evaluates..."
+              />
+            </div>
+            <div>
+              <Label htmlFor="areaId">Area</Label>
+              <Select 
+                value={form.watch('areaId')} 
+                onValueChange={(value) => form.setValue('areaId', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select an area" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No specific area</SelectItem>
+                  {areas.map((area) => (
+                    <SelectItem key={area.id} value={area.id}>
+                      {area.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex justify-end space-x-2">
+              <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">
+                {editingCriteria ? 'Update' : 'Create'} Criteria
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
