@@ -42,7 +42,7 @@ interface Profile {
   email: string;
   first_name: string | null;
   last_name: string | null;
-  role: 'user' | 'client_admin' | 'super_admin';
+  role: 'user' | 'client_admin' | 'super_admin' | 'area_admin';
   area_id: string | null;
   created_at: string;
   area?: {
@@ -60,7 +60,7 @@ interface UserFormData {
   email: string;
   firstName: string;
   lastName: string;
-  role: 'user' | 'client_admin';
+  role: 'user' | 'client_admin' | 'area_admin';
   areaId: string;
   password?: string;
 }
@@ -187,8 +187,8 @@ export default function UserManagement() {
             email: formData.email,
             first_name: formData.firstName,
             last_name: formData.lastName,
-            role: formData.role,
-            area_id: formData.role === 'client_admin' ? null : (formData.areaId === 'none' ? null : formData.areaId),
+            role: formData.role as any, // Temporary cast until types are updated
+            area_id: (formData.role === 'client_admin' || formData.role === 'area_admin') ? null : (formData.areaId === 'none' ? null : formData.areaId),
             client_id: profile.client_id
           });
 
@@ -222,8 +222,8 @@ export default function UserManagement() {
         .update({
           first_name: formData.firstName,
           last_name: formData.lastName,
-          role: formData.role,
-          area_id: formData.role === 'client_admin' ? null : (formData.areaId === 'none' ? null : formData.areaId)
+          role: formData.role as any, // Temporary cast until types are updated
+          area_id: (formData.role === 'client_admin' || formData.role === 'area_admin') ? null : (formData.areaId === 'none' ? null : formData.areaId)
         })
         .eq('id', editingUser.id);
 
@@ -281,7 +281,7 @@ export default function UserManagement() {
       email: user.email,
       firstName: user.first_name || '',
       lastName: user.last_name || '',
-      role: user.role === 'super_admin' ? 'client_admin' : user.role,
+      role: user.role === 'super_admin' ? 'client_admin' : (user.role as 'user' | 'client_admin' | 'area_admin'),
       areaId: user.area_id || 'none'
     });
     setIsEditDialogOpen(true);
@@ -358,7 +358,7 @@ export default function UserManagement() {
                 <Label htmlFor="role">Role</Label>
                 <Select 
                   value={formData.role} 
-                  onValueChange={(value: 'user' | 'client_admin') => 
+                  onValueChange={(value: 'user' | 'client_admin' | 'area_admin') =>
                     setFormData(prev => ({ ...prev, role: value }))
                   }
                 >
@@ -367,13 +367,14 @@ export default function UserManagement() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="user">User</SelectItem>
+                    <SelectItem value="area_admin">Area Admin</SelectItem>
                     <SelectItem value="client_admin">Client Admin</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              {formData.role === 'user' && (
+              {(formData.role === 'user' || formData.role === 'area_admin') && (
                 <div>
-                  <Label htmlFor="areaId">Area</Label>
+                  <Label htmlFor="areaId">{formData.role === 'area_admin' ? 'Primary Area' : 'Area'}</Label>
                   <Select 
                     value={formData.areaId} 
                     onValueChange={(value) => setFormData(prev => ({ ...prev, areaId: value }))}
@@ -436,8 +437,13 @@ export default function UserManagement() {
                   </TableCell>
                   <TableCell>{user.email}</TableCell>
                   <TableCell>
-                    <Badge variant={user.role === 'client_admin' ? 'default' : 'secondary'}>
-                      {user.role === 'client_admin' ? 'Admin' : 'User'}
+                    <Badge variant={
+                      user.role === 'client_admin' ? 'default' : 
+                      user.role === 'area_admin' ? 'outline' : 
+                      'secondary'
+                    }>
+                      {user.role === 'client_admin' ? 'Client Admin' : 
+                       user.role === 'area_admin' ? 'Area Admin' : 'User'}
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -445,6 +451,11 @@ export default function UserManagement() {
                       <Badge variant="outline" className="flex items-center gap-1 w-fit">
                         <Building className="h-3 w-3" />
                         All Areas
+                      </Badge>
+                    ) : user.role === 'area_admin' ? (
+                      <Badge variant="outline" className="flex items-center gap-1 w-fit">
+                        <Building className="h-3 w-3" />
+                        Area Admin Access
                       </Badge>
                     ) : user.area ? (
                       <Badge variant="outline" className="flex items-center gap-1 w-fit">
@@ -527,7 +538,7 @@ export default function UserManagement() {
               <Label htmlFor="editRole">Role</Label>
               <Select 
                 value={formData.role} 
-                onValueChange={(value: 'user' | 'client_admin') => 
+                onValueChange={(value: 'user' | 'client_admin' | 'area_admin') => 
                   setFormData(prev => ({ ...prev, role: value }))
                 }
               >
@@ -536,13 +547,14 @@ export default function UserManagement() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="user">User</SelectItem>
+                  <SelectItem value="area_admin">Area Admin</SelectItem>
                   <SelectItem value="client_admin">Client Admin</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            {formData.role === 'user' && (
+            {(formData.role === 'user' || formData.role === 'area_admin') && (
               <div>
-                <Label htmlFor="editAreaId">Area</Label>
+                <Label htmlFor="editAreaId">{formData.role === 'area_admin' ? 'Primary Area' : 'Area'}</Label>
                 <Select 
                   value={formData.areaId} 
                   onValueChange={(value) => setFormData(prev => ({ ...prev, areaId: value }))}
