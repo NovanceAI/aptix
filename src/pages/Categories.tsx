@@ -76,6 +76,13 @@ export default function Categories() {
       fetchCriteria();
       fetchAreas();
       fetchUserAreaPermissions();
+      
+      // Set initial filter based on user role and permissions
+      if (profile.role === 'user' && profile.area_id) {
+        setSelectedArea(profile.area_id);
+      } else if (profile.role === 'area_admin') {
+        // Will be set after area permissions are fetched
+      }
     }
   }, [user, profile]);
 
@@ -138,7 +145,13 @@ export default function Categories() {
         .eq('permission_level', 'admin');
 
       if (!error && data) {
-        setUserAreaPermissions(data.map(p => p.area_id));
+        const areaIds = data.map(p => p.area_id);
+        setUserAreaPermissions(areaIds);
+        
+        // Set filter to first area for area admins
+        if (profile?.role === 'area_admin' && areaIds.length > 0) {
+          setSelectedArea(areaIds[0]);
+        }
       } else {
         console.error('Error fetching user area permissions:', error);
         setUserAreaPermissions([]);
@@ -286,23 +299,25 @@ export default function Categories() {
           </p>
         </div>
         <div className="flex items-center gap-4">
-          {/* Only show area filter to client admins */}
-          {profile?.role === 'client_admin' && (
-            <Select value={selectedArea} onValueChange={setSelectedArea}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Filter by area" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Areas</SelectItem>
-                <SelectItem value="unassigned">Unassigned</SelectItem>
-                {areas.map((area) => (
-                  <SelectItem key={area.id} value={area.id}>
-                    {area.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+          {/* Show area filter for all users, but disabled for non-client-admins */}
+          <Select 
+            value={selectedArea} 
+            onValueChange={profile?.role === 'client_admin' ? setSelectedArea : undefined}
+            disabled={profile?.role !== 'client_admin'}
+          >
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Filter by area" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Areas</SelectItem>
+              <SelectItem value="unassigned">Unassigned</SelectItem>
+              {areas.map((area) => (
+                <SelectItem key={area.id} value={area.id}>
+                  {area.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           {canCreateCriteria() && (
             <Button onClick={openNewDialog}>
               <Plus className="h-4 w-4 mr-2" />
