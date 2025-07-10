@@ -67,6 +67,136 @@ export type Database = {
         }
         Relationships: []
       }
+      evaluation_criteria: {
+        Row: {
+          client_id: string | null
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evaluation_criteria_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      evaluation_responses: {
+        Row: {
+          comments: string | null
+          created_at: string
+          criteria_id: string
+          evaluation_id: string
+          id: string
+          score: number | null
+          updated_at: string
+        }
+        Insert: {
+          comments?: string | null
+          created_at?: string
+          criteria_id: string
+          evaluation_id: string
+          id?: string
+          score?: number | null
+          updated_at?: string
+        }
+        Update: {
+          comments?: string | null
+          created_at?: string
+          criteria_id?: string
+          evaluation_id?: string
+          id?: string
+          score?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evaluation_responses_criteria_id_fkey"
+            columns: ["criteria_id"]
+            isOneToOne: false
+            referencedRelation: "evaluation_criteria"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evaluation_responses_evaluation_id_fkey"
+            columns: ["evaluation_id"]
+            isOneToOne: false
+            referencedRelation: "evaluations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      evaluations: {
+        Row: {
+          client_id: string
+          completed_at: string | null
+          created_at: string
+          description: string | null
+          due_date: string | null
+          evaluatee_id: string
+          evaluator_id: string
+          id: string
+          status: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          evaluatee_id: string
+          evaluator_id: string
+          id?: string
+          status?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          evaluatee_id?: string
+          evaluator_id?: string
+          id?: string
+          status?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evaluations_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           client_id: string | null
