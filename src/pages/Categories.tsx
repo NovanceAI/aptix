@@ -137,6 +137,13 @@ export default function Categories() {
       return;
     }
 
+    if (profile?.role === 'area_admin' && profile.area_id) {
+      // For area admins, use their primary area from profile
+      setUserAreaPermissions([profile.area_id]);
+      setSelectedArea(profile.area_id);
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('area_permissions')
@@ -148,8 +155,8 @@ export default function Categories() {
         const areaIds = data.map(p => p.area_id);
         setUserAreaPermissions(areaIds);
         
-        // Set filter to first area for area admins
-        if (profile?.role === 'area_admin' && areaIds.length > 0) {
+        // Set filter to first area for other roles
+        if (areaIds.length > 0) {
           setSelectedArea(areaIds[0]);
         }
       } else {
@@ -337,16 +344,9 @@ export default function Categories() {
         <div className="flex items-center gap-4">
           {/* Area display/filter - different UI based on role */}
           {profile?.role === 'area_admin' ? (
-            // For area admins: read-only display of their area
+            // For area admins: read-only display of their primary area
             <div className="w-48 px-3 py-2 border border-input bg-muted rounded-md text-sm">
-              {(() => {
-                console.log('Debug - selectedArea:', selectedArea);
-                console.log('Debug - areas:', areas);
-                console.log('Debug - userAreaPermissions:', userAreaPermissions);
-                const foundArea = areas.find(area => area.id === selectedArea);
-                console.log('Debug - foundArea:', foundArea);
-                return foundArea?.name || `No area found (${selectedArea})`;
-              })()}
+              {areas.find(area => area.id === profile.area_id)?.name || 'No area assigned'}
             </div>
           ) : (
             // For client admins: interactive filter
