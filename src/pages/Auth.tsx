@@ -20,6 +20,15 @@ interface SignInForm {
   password: string;
 }
 
+interface SignUpForm {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+  companyName?: string;
+}
+
 interface InviteSignUpForm {
   firstName: string;
   lastName: string;
@@ -51,19 +60,72 @@ export default function Auth() {
   const [invitation, setInvitation] = useState<Invitation | null>(null);
   const [areas, setAreas] = useState<Area[]>([]);
   const [showAreaRegistration, setShowAreaRegistration] = useState(false);
+  const [emailDomainInfo, setEmailDomainInfo] = useState<{
+    exists: boolean;
+    clientName?: string;
+    willBeAdmin: boolean;
+  }>({ exists: false, willBeAdmin: false });
   
   const navigate = useNavigate();
   const { signIn, signUp } = useAuth();
   const { toast } = useToast();
 
   const signInForm = useForm<SignInForm>();
+  const signUpForm = useForm<SignUpForm>();
   const inviteSignUpForm = useForm<InviteSignUpForm>();
+
+  // Watch email input to check domain status for company creation
+  const watchedEmail = signUpForm.watch('email');
 
   useEffect(() => {
     if (inviteToken) {
       validateInvitation();
     }
   }, [inviteToken]);
+
+  useEffect(() => {
+    if (!inviteToken) {
+      checkEmailDomain();
+    }
+  }, [watchedEmail, inviteToken]);
+
+  const checkEmailDomain = async () => {
+    if (!watchedEmail || !watchedEmail.includes('@')) {
+      setEmailDomainInfo({ exists: false, willBeAdmin: false });
+      return;
+    }
+
+    const domain = watchedEmail.split('@')[1];
+    if (!domain) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('client_email_domains')
+        .select('clients(name)')
+        .eq('domain', domain)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error checking domain:', error);
+        return;
+      }
+
+      if (data) {
+        setEmailDomainInfo({
+          exists: true,
+          clientName: data.clients?.name,
+          willBeAdmin: false
+        });
+      } else {
+        setEmailDomainInfo({
+          exists: false,
+          willBeAdmin: true
+        });
+      }
+    } catch (err) {
+      console.error('Error checking domain:', err);
+    }
+  };
 
   const validateInvitation = async () => {
     if (!inviteToken) return;
@@ -119,6 +181,46 @@ export default function Auth() {
         description: "Signed in successfully!",
       });
       navigate('/');
+    }
+
+    setIsLoading(false);
+  };
+
+  const handleCompanySignUp = async (data: SignUpForm) => {
+    if (data.password !== data.confirmPassword) {
+      setError("Passwords don't match");
+      return;
+    }
+
+    // Only allow signup for new domains
+    if (emailDomainInfo.exists) {
+      setError("This domain already has an organization. Please contact your administrator for an invitation.");
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    const { error } = await signUp(
+      data.email, 
+      data.password, 
+      data.firstName, 
+      data.lastName,
+      data.companyName
+    );
+
+    if (error) {
+      setError(error.message);
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Success",
+        description: "Company created and account registered! You'll be the admin for your organization. Please check your email to verify your account.",
+      });
     }
 
     setIsLoading(false);
@@ -248,8 +350,44 @@ export default function Auth() {
     setAreas(prev => [...prev, { id: areaId, name: 'New Area' }]);
   };
 
-  // Redirect to regular auth if no invitation
-  if (!inviteToken) {
+  const getDomainStatusMessage = () => {
+    if (!watchedEmail || !watchedEmail.includes('@')) return null;
+
+    if (emailDomainInfo.exists) {
+      return (
+        <div className="flex items-center gap-2 p-3 bg-red-50 rounded-lg border border-red-200">
+          <Users className="h-4 w-4 text-red-600" />
+          <div className="text-sm">
+            <p className="font-medium text-red-900">
+              Domain Already Registered
+            </p>
+            <p className="text-red-700">
+              {emailDomainInfo.clientName} already uses this domain. Contact your administrator for an invitation.
+            </p>
+          </div>
+        </div>
+      );
+    } else if (emailDomainInfo.willBeAdmin) {
+      return (
+        <div className="flex items-center gap-2 p-3 bg-amber-50 rounded-lg border border-amber-200">
+          <Crown className="h-4 w-4 text-amber-600" />
+          <div className="text-sm">
+            <p className="font-medium text-amber-900">
+              Creating New Organization
+            </p>
+            <p className="text-amber-700">
+              You'll be the admin for this company domain
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    return null;
+  };
+
+  // Show invitation signup form if invite token present
+  if (inviteToken) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-4">
         <Card className="w-full max-w-md">
@@ -258,64 +396,145 @@ export default function Auth() {
               <Building2 className="h-8 w-8 text-primary" />
               <h1 className="text-2xl font-bold">360° Reviews</h1>
             </div>
-            <CardTitle className="text-2xl">Access Restricted</CardTitle>
+            <CardTitle className="text-2xl">Join Organization</CardTitle>
             <CardDescription>
-              Account creation is by invitation only. Contact your administrator for an invitation link.
+              {invitation ? (
+                <>Complete your registration for <strong>{invitation.email}</strong></>
+              ) : (
+                'Loading invitation...'
+              )}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="signin" className="w-full">
-              <TabsList className="grid w-full grid-cols-1">
-                <TabsTrigger value="signin">Sign In</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="signin" className="space-y-4">
-                <form onSubmit={signInForm.handleSubmit(handleSignIn)} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="signin-email">Email</Label>
-                    <Input
-                      id="signin-email"
-                      type="email"
-                      placeholder="Enter your email"
-                      {...signInForm.register('email', { required: true })}
-                      disabled={isLoading}
-                    />
+            {invitation && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 p-3 bg-green-50 rounded-lg border border-green-200">
+                  <UserPlus className="h-4 w-4 text-green-600" />
+                  <div className="text-sm">
+                    <p className="font-medium text-green-900">
+                      {invitation.invitation_type === 'area_admin' ? 'Area Admin Invitation' : 'Employee Invitation'}
+                    </p>
+                    <p className="text-green-700">
+                      You've been invited to join as {invitation.invitation_type.replace('_', ' ')}
+                    </p>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signin-password">Password</Label>
-                    <Input
-                      id="signin-password"
-                      type="password"
-                      placeholder="Enter your password"
-                      {...signInForm.register('password', { required: true })}
-                      disabled={isLoading}
-                    />
-                  </div>
-                  {error && (
-                    <Alert variant="destructive">
-                      <AlertDescription>{error}</AlertDescription>
-                    </Alert>
-                  )}
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Signing In...
-                      </>
-                    ) : (
-                      'Sign In'
+                </div>
+
+                {showAreaRegistration ? (
+                  <AreaRegistration 
+                    onAreaCreated={handleAreaCreated}
+                    clientId={invitation.client_id}
+                  />
+                ) : (
+                  <form onSubmit={inviteSignUpForm.handleSubmit(handleInviteSignUp)} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="signup-firstname">First Name</Label>
+                        <Input
+                          id="signup-firstname"
+                          placeholder="First name"
+                          {...inviteSignUpForm.register('firstName', { required: true })}
+                          disabled={isLoading}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="signup-lastname">Last Name</Label>
+                        <Input
+                          id="signup-lastname"
+                          placeholder="Last name"
+                          {...inviteSignUpForm.register('lastName', { required: true })}
+                          disabled={isLoading}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Email</Label>
+                      <Input
+                        value={invitation.email}
+                        disabled
+                        className="bg-muted"
+                      />
+                    </div>
+
+                    {invitation.invitation_type === 'area_admin' && (
+                      <div className="space-y-2">
+                        <Label htmlFor="area-select">Select Area</Label>
+                        <Select
+                          value={inviteSignUpForm.watch('areaId') || ''}
+                          onValueChange={(value) => inviteSignUpForm.setValue('areaId', value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Choose your area" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {areas.map((area) => (
+                              <SelectItem key={area.id} value={area.id}>
+                                {area.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowAreaRegistration(true)}
+                          className="w-full mt-2"
+                        >
+                          Or Create New Area
+                        </Button>
+                      </div>
                     )}
-                  </Button>
-                </form>
-              </TabsContent>
-            </Tabs>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-password">Password</Label>
+                      <Input
+                        id="signup-password"
+                        type="password"
+                        placeholder="Create a password"
+                        {...inviteSignUpForm.register('password', { required: true, minLength: 6 })}
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-confirm">Confirm Password</Label>
+                      <Input
+                        id="signup-confirm"
+                        type="password"
+                        placeholder="Confirm your password"
+                        {...inviteSignUpForm.register('confirmPassword', { required: true })}
+                        disabled={isLoading}
+                      />
+                    </div>
+
+                    {error && (
+                      <Alert variant="destructive">
+                        <AlertDescription>{error}</AlertDescription>
+                      </Alert>
+                    )}
+
+                    <Button type="submit" className="w-full" disabled={isLoading}>
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Creating Account...
+                        </>
+                      ) : (
+                        'Create Account'
+                      )}
+                    </Button>
+                  </form>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  // Show invitation signup form
+  // Show regular auth page for sign-in and company creation
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-4">
       <Card className="w-full max-w-md">
@@ -324,138 +543,162 @@ export default function Auth() {
             <Building2 className="h-8 w-8 text-primary" />
             <h1 className="text-2xl font-bold">360° Reviews</h1>
           </div>
-          <CardTitle className="text-2xl">Join Organization</CardTitle>
+          <CardTitle className="text-2xl">Welcome</CardTitle>
           <CardDescription>
-            {invitation ? (
-              <>Complete your registration for <strong>{invitation.email}</strong></>
-            ) : (
-              'Loading invitation...'
-            )}
+            Sign in to your account or create a new company
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {invitation && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 p-3 bg-green-50 rounded-lg border border-green-200">
-                <UserPlus className="h-4 w-4 text-green-600" />
-                <div className="text-sm">
-                  <p className="font-medium text-green-900">
-                    {invitation.invitation_type === 'area_admin' ? 'Area Admin Invitation' : 'Employee Invitation'}
-                  </p>
-                  <p className="text-green-700">
-                    You've been invited to join as {invitation.invitation_type.replace('_', ' ')}
-                  </p>
+          <Tabs defaultValue="signin" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="signin">Sign In</TabsTrigger>
+              <TabsTrigger value="signup">Create Company</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="signin" className="space-y-4">
+              <form onSubmit={signInForm.handleSubmit(handleSignIn)} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="signin-email">Email</Label>
+                  <Input
+                    id="signin-email"
+                    type="email"
+                    placeholder="Enter your email"
+                    {...signInForm.register('email', { required: true })}
+                    disabled={isLoading}
+                  />
                 </div>
-              </div>
-
-              {showAreaRegistration ? (
-                <AreaRegistration 
-                  onAreaCreated={handleAreaCreated}
-                  clientId={invitation.client_id}
-                />
-              ) : (
-                <form onSubmit={inviteSignUpForm.handleSubmit(handleInviteSignUp)} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="signup-firstname">First Name</Label>
-                      <Input
-                        id="signup-firstname"
-                        placeholder="First name"
-                        {...inviteSignUpForm.register('firstName', { required: true })}
-                        disabled={isLoading}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="signup-lastname">Last Name</Label>
-                      <Input
-                        id="signup-lastname"
-                        placeholder="Last name"
-                        {...inviteSignUpForm.register('lastName', { required: true })}
-                        disabled={isLoading}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Email</Label>
-                    <Input
-                      value={invitation.email}
-                      disabled
-                      className="bg-muted"
-                    />
-                  </div>
-
-                  {invitation.invitation_type === 'area_admin' && (
-                    <div className="space-y-2">
-                      <Label htmlFor="area-select">Select Area</Label>
-                      <Select
-                        value={inviteSignUpForm.watch('areaId') || ''}
-                        onValueChange={(value) => inviteSignUpForm.setValue('areaId', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Choose your area" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {areas.map((area) => (
-                            <SelectItem key={area.id} value={area.id}>
-                              {area.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowAreaRegistration(true)}
-                        className="w-full mt-2"
-                      >
-                        Or Create New Area
-                      </Button>
-                    </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signin-password">Password</Label>
+                  <Input
+                    id="signin-password"
+                    type="password"
+                    placeholder="Enter your password"
+                    {...signInForm.register('password', { required: true })}
+                    disabled={isLoading}
+                  />
+                </div>
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Signing In...
+                    </>
+                  ) : (
+                    'Sign In'
                   )}
-
+                </Button>
+              </form>
+            </TabsContent>
+            
+            <TabsContent value="signup" className="space-y-4">
+              <form onSubmit={signUpForm.handleSubmit(handleCompanySignUp)} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="signup-password">Password</Label>
+                    <Label htmlFor="signup-firstname">First Name</Label>
                     <Input
-                      id="signup-password"
-                      type="password"
-                      placeholder="Create a password"
-                      {...inviteSignUpForm.register('password', { required: true, minLength: 6 })}
+                      id="signup-firstname"
+                      placeholder="First name"
+                      {...signUpForm.register('firstName', { required: true })}
                       disabled={isLoading}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-confirm">Confirm Password</Label>
+                    <Label htmlFor="signup-lastname">Last Name</Label>
                     <Input
-                      id="signup-confirm"
-                      type="password"
-                      placeholder="Confirm your password"
-                      {...inviteSignUpForm.register('confirmPassword', { required: true })}
+                      id="signup-lastname"
+                      placeholder="Last name"
+                      {...signUpForm.register('lastName', { required: true })}
                       disabled={isLoading}
                     />
                   </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="signup-email">Work Email</Label>
+                  <Input
+                    id="signup-email"
+                    type="email"
+                    placeholder="Enter your work email"
+                    {...signUpForm.register('email', { required: true })}
+                    disabled={isLoading}
+                  />
+                  {getDomainStatusMessage()}
+                </div>
 
-                  {error && (
-                    <Alert variant="destructive">
-                      <AlertDescription>{error}</AlertDescription>
-                    </Alert>
+                {emailDomainInfo.willBeAdmin && (
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-company">Company Name</Label>
+                    <Input
+                      id="signup-company"
+                      placeholder="Enter your company name"
+                      {...signUpForm.register('companyName')}
+                      disabled={isLoading}
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      Optional: If not provided, we'll use your email domain
+                    </p>
+                  </div>
+                )}
+                
+                <div className="space-y-2">
+                  <Label htmlFor="signup-password">Password</Label>
+                  <Input
+                    id="signup-password"
+                    type="password"
+                    placeholder="Create a password"
+                    {...signUpForm.register('password', { required: true, minLength: 6 })}
+                    disabled={isLoading}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-confirm">Confirm Password</Label>
+                  <Input
+                    id="signup-confirm"
+                    type="password"
+                    placeholder="Confirm your password"
+                    {...signUpForm.register('confirmPassword', { required: true })}
+                    disabled={isLoading}
+                  />
+                </div>
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
+                
+                <Button 
+                  type="submit" 
+                  className="w-full" 
+                  disabled={isLoading || emailDomainInfo.exists}
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Creating Company...
+                    </>
+                  ) : (
+                    <>
+                      <Crown className="mr-2 h-4 w-4" />
+                      Create Company & Account
+                    </>
                   )}
+                </Button>
 
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Creating Account...
-                      </>
-                    ) : (
-                      'Create Account'
-                    )}
-                  </Button>
-                </form>
-              )}
-            </div>
-          )}
+                {emailDomainInfo.willBeAdmin && (
+                  <div className="text-center pt-2">
+                    <Badge variant="outline" className="text-amber-700 border-amber-300">
+                      You'll become the company administrator
+                    </Badge>
+                  </div>
+                )}
+              </form>
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
     </div>
