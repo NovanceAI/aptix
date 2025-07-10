@@ -1,4 +1,4 @@
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { NavigationSidebar } from "./NavigationSidebar";
 import { Bell, User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,33 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 
 interface LayoutProps {
   children: React.ReactNode;
+}
+
+function HeaderContent() {
+  const { state } = useSidebar();
+  const isCollapsed = state === "collapsed";
+
+  return (
+    <div className="flex items-center gap-4">
+      <SidebarTrigger />
+      {isCollapsed ? (
+        <div className="flex items-center gap-3">
+          <img 
+            src="/lovable-uploads/0d951d8d-f416-40ce-a691-a58cc1c22de3.png" 
+            alt="Aptix Logo" 
+            className="h-8 w-8"
+          />
+          <span className="text-xl font-bold text-foreground">APTIX</span>
+        </div>
+      ) : (
+        <div className="hidden md:block">
+          <h2 className="font-semibold text-foreground">
+            360° Performance Review Platform
+          </h2>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function Layout({ children }: LayoutProps) {
@@ -25,14 +52,7 @@ export function Layout({ children }: LayoutProps) {
         <div className="flex-1 flex flex-col">
           {/* Header */}
           <header className="h-16 border-b border-border bg-card px-6 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <SidebarTrigger />
-              <div className="hidden md:block">
-                <h2 className="font-semibold text-foreground">
-                  360° Performance Review Platform
-                </h2>
-              </div>
-            </div>
+            <HeaderContent />
             
             <div className="flex items-center gap-4">
               <Button variant="ghost" size="icon">
