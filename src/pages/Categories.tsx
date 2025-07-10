@@ -339,7 +339,7 @@ export default function Categories() {
           {profile?.role === 'area_admin' ? (
             // For area admins: read-only display of their area
             <div className="w-48 px-3 py-2 border border-input bg-muted rounded-md text-sm">
-              {areas.find(area => userAreaPermissions.includes(area.id))?.name || 'Loading...'}
+              {areas.find(area => area.id === selectedArea)?.name || 'Loading...'}
             </div>
           ) : (
             // For client admins: interactive filter
