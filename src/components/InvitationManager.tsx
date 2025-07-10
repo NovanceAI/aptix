@@ -87,13 +87,16 @@ export function InvitationManager() {
 
     setLoading(true);
     try {
-      // Generate token
-      const { data: tokenData, error: tokenError } = await supabase
-        .rpc("generate_invitation_token");
+      // Parse multiple emails (comma separated)
+      const emails = email.split(',').map(e => e.trim()).filter(e => e);
+      
+      if (emails.length === 0) {
+        throw new Error('Please enter at least one email address');
+      }
 
-      if (tokenError) throw tokenError;
-
-      // Get current user's client_id
+      const results = [];
+      
+      // Get current user's client_id once
       const { data: userProfile, error: profileError } = await supabase
         .from("profiles")
         .select("client_id")
@@ -101,26 +104,40 @@ export function InvitationManager() {
         .single();
 
       if (profileError) throw profileError;
+      
+      for (const emailAddress of emails) {
+        // Validate email format
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailAddress)) {
+          throw new Error(`Invalid email format: ${emailAddress}`);
+        }
 
-      // Create invitation
-      const invitationData = {
-        email,
-        invitation_type: invitationType,
-        token: tokenData,
-        area_id: invitationType === "employee" ? selectedAreaId : null,
-        client_id: userProfile.client_id,
-        invited_by: profile?.id,
-      };
+        // Generate token for each email
+        const { data: tokenData, error: tokenError } = await supabase
+          .rpc("generate_invitation_token");
 
-      const { error } = await supabase
-        .from("invitations")
-        .insert(invitationData);
+        if (tokenError) throw tokenError;
 
-      if (error) throw error;
+        // Create invitation
+        const invitationData = {
+          email: emailAddress,
+          invitation_type: invitationType,
+          token: tokenData,
+          area_id: invitationType === "employee" ? selectedAreaId : null,
+          client_id: userProfile.client_id,
+          invited_by: profile?.id,
+        };
+
+        const { error } = await supabase
+          .from("invitations")
+          .insert(invitationData);
+
+        if (error) throw error;
+        results.push(emailAddress);
+      }
 
       toast({
         title: "Success",
-        description: "Invitation created successfully",
+        description: `${results.length} invitation${results.length > 1 ? 's' : ''} created successfully`,
       });
 
       setEmail("");
@@ -189,11 +206,14 @@ export function InvitationManager() {
             <div>
               <Input
                 type="email"
-                placeholder="Email address"
+                placeholder="Email addresses (comma separated for multiple)"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                Send invitation links to new users. Use commas to separate multiple email addresses.
+              </p>
             </div>
 
             <div>

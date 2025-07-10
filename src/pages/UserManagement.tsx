@@ -73,6 +73,7 @@ export default function UserManagement() {
   const [users, setUsers] = useState<Profile[]>([]);
   const [areas, setAreas] = useState<Area[]>([]);
   const [loading, setLoading] = useState(true);
+  const [inviteLoading, setInviteLoading] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
@@ -299,37 +300,61 @@ export default function UserManagement() {
     setIsEditDialogOpen(true);
   };
 
-  const getInvitationUrl = () => {
-    const baseUrl = window.location.origin;
-    return `${baseUrl}/auth?invite=`;
-  };
+  const createAndCopyInvitationLink = async () => {
+    try {
+      setInviteLoading(true);
+      
+      // Generate token
+      const { data: tokenData, error: tokenError } = await supabase
+        .rpc("generate_invitation_token");
 
-  const copyInvitationInfo = () => {
-    const invitationType = profile?.role === 'client_admin' ? 'Area Admin' : 'Employee';
-    const instructions = profile?.role === 'client_admin' 
-      ? `To invite Area Admins to your organization:
+      if (tokenError) throw tokenError;
 
-1. Go to the "Send Invitations" tab
-2. Create an invitation for the Area Admin role  
-3. Copy the invitation link and send it to the person
-4. They'll be able to select or create their area during signup
+      // Get current user's client_id
+      const { data: userProfile, error: profileError } = await supabase
+        .from("profiles")
+        .select("client_id")
+        .eq("id", profile?.id)
+        .single();
 
-Base invitation URL: ${getInvitationUrl()}[TOKEN]`
-      : `To invite Employees to your area:
+      if (profileError) throw profileError;
 
-1. Go to the "Send Invitations" tab
-2. Create an invitation for the Employee role
-3. Select your area for the employee
-4. Copy the invitation link and send it to the person
-5. They'll automatically be assigned to your area
+      // Create invitation
+      const invitationType = profile?.role === 'client_admin' ? 'area_admin' : 'employee';
+      const invitationData = {
+        email: 'placeholder@example.com', // Will be replaced when the recipient uses the link
+        invitation_type: invitationType,
+        token: tokenData,
+        area_id: profile?.role === 'area_admin' ? profile.area_id : null,
+        client_id: userProfile.client_id,
+        invited_by: profile?.id,
+      };
 
-Base invitation URL: ${getInvitationUrl()}[TOKEN]`;
+      const { error } = await supabase
+        .from('invitations')
+        .insert(invitationData);
 
-    navigator.clipboard.writeText(instructions);
-    toast({
-      title: "Instructions Copied",
-      description: `${invitationType} invitation instructions copied to clipboard`,
-    });
+      if (error) throw error;
+
+      // Copy the invitation link
+      const invitationLink = `${window.location.origin}/auth?invite=${tokenData}`;
+      await navigator.clipboard.writeText(invitationLink);
+
+      toast({
+        title: "Invitation Link Copied",
+        description: `${invitationType === 'area_admin' ? 'Area Admin' : 'Employee'} invitation link copied to clipboard. Paste it in your email.`,
+      });
+
+    } catch (error: any) {
+      console.error('Error creating invitation:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create invitation link",
+        variant: "destructive",
+      });
+    } finally {
+      setInviteLoading(false);
+    }
   };
 
   if (loading) {
@@ -372,28 +397,26 @@ Base invitation URL: ${getInvitationUrl()}[TOKEN]`;
               <div className="flex items-center justify-between p-4 bg-white rounded-lg border border-blue-200">
                 <div className="flex-1">
                   <p className="text-sm font-medium text-gray-900 mb-1">
-                    Invitation Instructions
+                    Quick Invitation Link
                   </p>
                   <p className="text-sm text-gray-600">
-                    Click to copy step-by-step instructions for inviting {profile?.role === 'client_admin' ? 'Area Admins' : 'employees'}
+                    Generate and copy an invitation link to paste directly into your email
                   </p>
                 </div>
                 <Button 
-                  onClick={copyInvitationInfo}
+                  onClick={createAndCopyInvitationLink}
                   className="ml-4"
                   size="sm"
+                  disabled={inviteLoading}
                 >
                   <Copy className="h-4 w-4 mr-2" />
-                  Copy Instructions
+                  {inviteLoading ? 'Creating...' : 'Copy Link'}
                 </Button>
               </div>
               <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                <p className="text-xs text-blue-700 mb-1">Quick Steps:</p>
+                <p className="text-xs text-blue-700 mb-1">How it works:</p>
                 <p className="text-sm text-blue-800">
-                  1. Go to "Send Invitations" tab → 
-                  2. Create invitation → 
-                  3. Copy link → 
-                  4. Send to {profile?.role === 'client_admin' ? 'Area Admin' : 'employee'}
+                  Click "Copy Link" → Paste into email → Send to {profile?.role === 'client_admin' ? 'Area Admin' : 'employee'} → They complete signup with the link
                 </p>
               </div>
             </CardContent>
