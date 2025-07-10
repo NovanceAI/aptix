@@ -35,7 +35,9 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2, Users, Building } from 'lucide-react';
+import { Plus, Edit, Trash2, Users, Building, UserPlus } from 'lucide-react';
+import { InvitationManager } from '@/components/InvitationManager';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface Profile {
   id: string;
@@ -307,214 +309,120 @@ export default function UserManagement() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">User Management</h1>
-          <p className="text-muted-foreground">Manage users in your organization</p>
-        </div>
-        
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={resetForm}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add User
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add New User</DialogTitle>
-              <DialogDescription>
-                Create a new user account for your organization.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="firstName">First Name</Label>
-                  <Input
-                    id="firstName"
-                    value={formData.firstName}
-                    onChange={(e) => setFormData(prev => ({ ...prev, firstName: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="lastName">Last Name</Label>
-                  <Input
-                    id="lastName"
-                    value={formData.lastName}
-                    onChange={(e) => setFormData(prev => ({ ...prev, lastName: e.target.value }))}
-                  />
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                />
-              </div>
-              <div>
-                <Label htmlFor="password">Temporary Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                />
-              </div>
-              <div>
-                <Label htmlFor="role">Role</Label>
-                <Select 
-                  value={formData.role} 
-                  onValueChange={(value: 'user' | 'client_admin' | 'area_admin') =>
-                    setFormData(prev => ({ ...prev, role: value }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="user">User</SelectItem>
-                    {profile?.role === 'client_admin' && (
-                      <>
-                        <SelectItem value="area_admin">Area Admin</SelectItem>
-                        <SelectItem value="client_admin">Client Admin</SelectItem>
-                      </>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-              {(formData.role === 'user' || formData.role === 'area_admin') && (
-                <div>
-                  <Label htmlFor="areaId">{formData.role === 'area_admin' ? 'Primary Area' : 'Area'}</Label>
-                  <Select 
-                    value={formData.areaId} 
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, areaId: value }))}
-                    disabled={profile?.role === 'area_admin'}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select an area" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {profile?.role === 'client_admin' && <SelectItem value="none">No specific area</SelectItem>}
-                      {areas
-                        .filter(area => profile?.role === 'client_admin' || area.id === profile?.area_id)
-                        .map((area) => (
-                          <SelectItem key={area.id} value={area.id}>
-                            {area.name}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleAddUser}>Add User</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+      <div>
+        <h1 className="text-3xl font-bold">User Management</h1>
+        <p className="text-muted-foreground">Manage users and invitations in your organization</p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            Users ({users.length})
-          </CardTitle>
-          <CardDescription>
-            {profile?.role === 'area_admin' 
-              ? 'Manage users in your area' 
-              : 'Manage all users in your organization'
-            }
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Area</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {users.map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell className="font-medium">
-                    {user.first_name && user.last_name 
-                      ? `${user.first_name} ${user.last_name}`
-                      : 'N/A'
-                    }
-                  </TableCell>
-                  <TableCell>{user.email}</TableCell>
-                  <TableCell>
-                    <Badge variant={
-                      user.role === 'client_admin' ? 'default' : 
-                      user.role === 'area_admin' ? 'outline' : 
-                      'secondary'
-                    }>
-                      {user.role === 'client_admin' ? 'Client Admin' : 
-                       user.role === 'area_admin' ? 'Area Admin' : 'User'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {user.role === 'client_admin' ? (
-                      <Badge variant="outline" className="flex items-center gap-1 w-fit">
-                        <Building className="h-3 w-3" />
-                        All Areas
-                      </Badge>
-                    ) : user.role === 'area_admin' ? (
-                      <Badge variant="outline" className="flex items-center gap-1 w-fit">
-                        <Building className="h-3 w-3" />
-                        Area Admin Access
-                      </Badge>
-                    ) : user.area ? (
-                      <Badge variant="outline" className="flex items-center gap-1 w-fit">
-                        <Building className="h-3 w-3" />
-                        {user.area.name}
-                      </Badge>
-                    ) : (
-                      <Badge variant="secondary">Unassigned</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {new Date(user.created_at).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openEditDialog(user)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      {user.id !== profile?.id && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setDeleteUserId(user.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <Tabs defaultValue="users" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="users">Current Users</TabsTrigger>
+          <TabsTrigger value="invitations">Send Invitations</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="users" className="space-y-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  Users ({users.length})
+                </CardTitle>
+                <CardDescription>
+                  {profile?.role === 'area_admin' 
+                    ? 'Users in your area' 
+                    : 'All users in your organization'
+                  }
+                </CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Area</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {users.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell className="font-medium">
+                        {user.first_name && user.last_name 
+                          ? `${user.first_name} ${user.last_name}`
+                          : 'N/A'
+                        }
+                      </TableCell>
+                      <TableCell>{user.email}</TableCell>
+                      <TableCell>
+                        <Badge variant={
+                          user.role === 'client_admin' ? 'default' : 
+                          user.role === 'area_admin' ? 'outline' : 
+                          'secondary'
+                        }>
+                          {user.role === 'client_admin' ? 'Client Admin' : 
+                           user.role === 'area_admin' ? 'Area Admin' : 'User'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {user.role === 'client_admin' ? (
+                          <Badge variant="outline" className="flex items-center gap-1 w-fit">
+                            <Building className="h-3 w-3" />
+                            All Areas
+                          </Badge>
+                        ) : user.role === 'area_admin' ? (
+                          <Badge variant="outline" className="flex items-center gap-1 w-fit">
+                            <Building className="h-3 w-3" />
+                            Area Admin Access
+                          </Badge>
+                        ) : user.area ? (
+                          <Badge variant="outline" className="flex items-center gap-1 w-fit">
+                            <Building className="h-3 w-3" />
+                            {user.area.name}
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary">Unassigned</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {new Date(user.created_at).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openEditDialog(user)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          {user.id !== profile?.id && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setDeleteUserId(user.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="invitations">
+          <InvitationManager />
+        </TabsContent>
+      </Tabs>
 
       {/* Edit User Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>

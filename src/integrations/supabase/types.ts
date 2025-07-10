@@ -329,6 +329,48 @@ export type Database = {
           },
         ]
       }
+      invitations: {
+        Row: {
+          area_id: string | null
+          client_id: string
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          invitation_type: string
+          invited_by: string
+          token: string
+          updated_at: string
+          used_at: string | null
+        }
+        Insert: {
+          area_id?: string | null
+          client_id: string
+          created_at?: string
+          email: string
+          expires_at?: string
+          id?: string
+          invitation_type: string
+          invited_by: string
+          token: string
+          updated_at?: string
+          used_at?: string | null
+        }
+        Update: {
+          area_id?: string | null
+          client_id?: string
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          invitation_type?: string
+          invited_by?: string
+          token?: string
+          updated_at?: string
+          used_at?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           area_id: string | null
@@ -385,6 +427,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_invitation_token: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       get_user_area_admin_areas: {
         Args: { user_id: string }
         Returns: string[]
