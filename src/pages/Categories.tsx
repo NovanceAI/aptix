@@ -68,7 +68,7 @@ export default function Categories() {
   // Check if user can create criteria
   const canCreateCriteria = () => {
     if (!profile) return false;
-    return profile.role === 'client_admin' || userAreaPermissions.length > 0;
+    return profile.role === 'client_admin' || profile.role === 'super_admin' || userAreaPermissions.length > 0;
   };
 
   useEffect(() => {
@@ -163,13 +163,45 @@ export default function Categories() {
   };
 
   const handleCreate = async (data: CriteriaForm) => {
+    // Get client_id for the request
+    let clientId = null;
+    
+    if (profile?.role === 'super_admin') {
+      // For super admin, we need to get a client_id from the selected area
+      if (data.areaId && data.areaId !== "none") {
+        const area = areas.find(a => a.id === data.areaId);
+        if (area) {
+          // Get client_id from the area
+          const { data: areaData } = await supabase
+            .from('areas')
+            .select('client_id')
+            .eq('id', data.areaId)
+            .single();
+          clientId = areaData?.client_id;
+        }
+      }
+      
+      // If no area selected or no client found, we'll let the RLS policy handle it
+      // Super admins can create global criteria
+    } else {
+      // For other roles, get their client_id from profile
+      clientId = profile?.client_id;
+    }
+
+    const insertData: any = {
+      name: data.name,
+      description: data.description,
+      area_id: data.areaId === "none" ? null : data.areaId
+    };
+
+    // Only add client_id if we have one (for super admin, it's optional for global criteria)
+    if (clientId) {
+      insertData.client_id = clientId;
+    }
+
     const { error } = await supabase
       .from('evaluation_criteria')
-      .insert({
-        name: data.name,
-        description: data.description,
-        area_id: data.areaId === "none" ? null : data.areaId
-      });
+      .insert(insertData);
 
     if (error) {
       toast({
