@@ -124,25 +124,29 @@ export function NavigationSidebar() {
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild>
-                      <NavLink
-                        to="/user-management"
-                        className={({ isActive }) =>
-                          cn(
-                            "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
-                            isActive
-                              ? "bg-primary text-primary-foreground"
-                              : "hover:bg-accent"
-                          )
-                        }
-                      >
-                        <UserCog className="h-4 w-4" />
-                        {!isCollapsed && <span>User Management</span>}
-                      </NavLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
                 </>
+              )}
+              
+              {/* User Management for Client and Area Admins */}
+              {(profile?.role === 'client_admin' || profile?.role === 'area_admin') && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <NavLink
+                      to="/user-management"
+                      className={({ isActive }) =>
+                        cn(
+                          "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+                          isActive
+                            ? "bg-primary text-primary-foreground"
+                            : "hover:bg-accent"
+                        )
+                      }
+                    >
+                      <UserCog className="h-4 w-4" />
+                      {!isCollapsed && <span>Users</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               )}
               
               {/* Super Admin Section */}
