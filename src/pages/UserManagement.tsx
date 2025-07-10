@@ -80,7 +80,7 @@ export default function UserManagement() {
     firstName: '',
     lastName: '',
     role: 'user',
-    areaId: '',
+    areaId: 'none',
     password: ''
   });
 
@@ -155,7 +155,7 @@ export default function UserManagement() {
       firstName: '',
       lastName: '',
       role: 'user',
-      areaId: '',
+      areaId: 'none',
       password: ''
     });
     setEditingUser(null);
@@ -188,7 +188,7 @@ export default function UserManagement() {
             first_name: formData.firstName,
             last_name: formData.lastName,
             role: formData.role,
-            area_id: formData.role === 'client_admin' ? null : (formData.areaId || null),
+            area_id: formData.role === 'client_admin' ? null : (formData.areaId === 'none' ? null : formData.areaId),
             client_id: profile.client_id
           });
 
@@ -223,7 +223,7 @@ export default function UserManagement() {
           first_name: formData.firstName,
           last_name: formData.lastName,
           role: formData.role,
-          area_id: formData.role === 'client_admin' ? null : (formData.areaId || null)
+          area_id: formData.role === 'client_admin' ? null : (formData.areaId === 'none' ? null : formData.areaId)
         })
         .eq('id', editingUser.id);
 
@@ -282,7 +282,7 @@ export default function UserManagement() {
       firstName: user.first_name || '',
       lastName: user.last_name || '',
       role: user.role === 'super_admin' ? 'client_admin' : user.role,
-      areaId: user.area_id || ''
+      areaId: user.area_id || 'none'
     });
     setIsEditDialogOpen(true);
   };
@@ -382,7 +382,7 @@ export default function UserManagement() {
                       <SelectValue placeholder="Select an area" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">No specific area</SelectItem>
+                      <SelectItem value="none">No specific area</SelectItem>
                       {areas.map((area) => (
                         <SelectItem key={area.id} value={area.id}>
                           {area.name}
@@ -551,7 +551,7 @@ export default function UserManagement() {
                     <SelectValue placeholder="Select an area" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">No specific area</SelectItem>
+                    <SelectItem value="none">No specific area</SelectItem>
                     {areas.map((area) => (
                       <SelectItem key={area.id} value={area.id}>
                         {area.name}
