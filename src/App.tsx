@@ -84,7 +84,7 @@ function AppContent() {
         <Route 
           path="/user-management" 
           element={
-            <ProtectedRoute requiredRole="client_admin">
+            <ProtectedRoute requiredRoles={["client_admin", "area_admin"]}>
               <UserManagement />
             </ProtectedRoute>
           } 
