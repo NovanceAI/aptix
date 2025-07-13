@@ -265,6 +265,12 @@ export default function UserManagement() {
       }
     } catch (error: any) {
       console.error('Error creating user:', error);
+      console.error('Profile data that failed:', {
+        role: formData.role,
+        client_id: profile?.role === 'super_admin' ? formData.clientId : profile?.client_id,
+        area_id: profile?.role === 'area_admin' ? profile.area_id : (formData.areaId === 'none' ? null : formData.areaId),
+        user_role: profile?.role
+      });
       toast({
         title: "Error",
         description: error.message || "Failed to create user",
