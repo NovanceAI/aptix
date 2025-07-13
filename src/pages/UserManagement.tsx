@@ -239,7 +239,7 @@ export default function UserManagement() {
             area_id: formData.role === 'client_admin' ? null : 
                     (formData.role === 'area_admin' ? (formData.areaId === 'none' ? null : formData.areaId) : 
                     (formData.areaId === 'none' ? null : formData.areaId)),
-            client_id: profile?.role === 'super_admin' ? formData.clientId : profile.client_id
+            client_id: profile?.role === 'super_admin' ? formData.clientId : profile?.client_id
           });
 
         if (profileError) throw profileError;
@@ -418,8 +418,8 @@ export default function UserManagement() {
         </TabsList>
 
         <TabsContent value="users" className="space-y-6">
-          {/* Create User Form - For Super Admins and Client Admins */}
-          {(profile?.role === 'super_admin' || profile?.role === 'client_admin') && (
+          {/* Create User Form - For Super Admins, Client Admins, and Area Admins */}
+          {(profile?.role === 'super_admin' || profile?.role === 'client_admin' || profile?.role === 'area_admin') && (
             <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -429,7 +429,9 @@ export default function UserManagement() {
                 <CardDescription>
                   {profile?.role === 'super_admin' 
                     ? 'As a Super Admin, you can create users directly for any client'
-                    : 'As a Client Admin, you can create users directly for your organization'
+                    : profile?.role === 'client_admin'
+                    ? 'As a Client Admin, you can create users directly for your organization'
+                    : 'As an Area Admin, you can create users for your specific area'
                   }
                 </CardDescription>
               </CardHeader>
@@ -501,9 +503,14 @@ export default function UserManagement() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="user">User</SelectItem>
-                        <SelectItem value="area_admin">Area Admin</SelectItem>
                         {(profile?.role === 'super_admin' || profile?.role === 'client_admin') && (
-                          <SelectItem value="client_admin">Client Admin</SelectItem>
+                          <>
+                            <SelectItem value="area_admin">Area Admin</SelectItem>
+                            <SelectItem value="client_admin">Client Admin</SelectItem>
+                          </>
+                        )}
+                        {profile?.role === 'area_admin' && (
+                          <SelectItem value="user">User</SelectItem>
                         )}
                       </SelectContent>
                     </Select>
@@ -518,11 +525,13 @@ export default function UserManagement() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="none">No Area</SelectItem>
-                          {areas.filter(area => 
-                            profile?.role === 'super_admin' 
-                              ? (formData.clientId ? area.client_id === formData.clientId : true)
-                              : area.client_id === profile?.client_id
-                          ).map((area) => (
+                           {areas.filter(area => 
+                             profile?.role === 'super_admin' 
+                               ? (formData.clientId ? area.client_id === formData.clientId : true)
+                               : profile?.role === 'area_admin'
+                               ? area.id === profile?.area_id
+                               : area.client_id === profile?.client_id
+                           ).map((area) => (
                             <SelectItem key={area.id} value={area.id}>
                               {area.name}
                             </SelectItem>
