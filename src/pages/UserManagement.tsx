@@ -228,19 +228,29 @@ export default function UserManagement() {
 
       if (authData.user) {
         // Create profile entry
+        const profileData: any = {
+          id: authData.user.id,
+          email: formData.email,
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          role: formData.role,
+          client_id: profile?.role === 'super_admin' ? formData.clientId : profile?.client_id
+        };
+
+        // Set area_id based on role and user permissions
+        if (formData.role === 'client_admin') {
+          profileData.area_id = null;
+        } else if (profile?.role === 'area_admin') {
+          // Area admins can only create users in their own area
+          profileData.area_id = profile.area_id;
+        } else {
+          // Super admins and client admins can assign to any area
+          profileData.area_id = formData.areaId === 'none' ? null : formData.areaId;
+        }
+
         const { error: profileError } = await supabase
           .from('profiles')
-          .insert({
-            id: authData.user.id,
-            email: formData.email,
-            first_name: formData.firstName,
-            last_name: formData.lastName,
-            role: formData.role,
-            area_id: formData.role === 'client_admin' ? null : 
-                    (formData.role === 'area_admin' ? (formData.areaId === 'none' ? null : formData.areaId) : 
-                    (formData.areaId === 'none' ? null : formData.areaId)),
-            client_id: profile?.role === 'super_admin' ? formData.clientId : profile?.client_id
-          });
+          .insert(profileData);
 
         if (profileError) throw profileError;
 
