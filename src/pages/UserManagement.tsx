@@ -253,6 +253,14 @@ export default function UserManagement() {
           profileData.area_id = formData.areaId === 'none' ? null : formData.areaId;
         }
 
+        // Debug: Check current authenticated user before insert
+        const { data: currentUser } = await supabase.auth.getUser();
+        console.log('Current authenticated user during profile creation:', {
+          currentUserId: currentUser.user?.id,
+          currentUserEmail: currentUser.user?.email,
+          profileDataBeingInserted: profileData
+        });
+
         const { error: profileError } = await supabase
           .from('profiles')
           .insert(profileData);
