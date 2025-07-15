@@ -150,6 +150,28 @@ export function NavigationSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
+
+              {/* Roles Management for Client and Area Admins */}
+              {(profile?.role === 'client_admin' || profile?.role === 'area_admin') && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <NavLink
+                      to="/roles"
+                      className={({ isActive }) =>
+                        cn(
+                          "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+                          isActive
+                            ? "bg-primary text-primary-foreground"
+                            : "hover:bg-accent"
+                        )
+                      }
+                    >
+                      <UserCog className="h-4 w-4" />
+                      {!isCollapsed && <span>Roles</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
               
               {/* Super Admin Section */}
               {profile?.role === 'super_admin' && (
