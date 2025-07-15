@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import EvaluationTemplateBuilder from '@/components/EvaluationTemplateBuilder';
 import { 
   Plus, 
   UserCog, 
@@ -298,43 +299,31 @@ export default function Roles() {
         </TabsContent>
 
         <TabsContent value="templates" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Award className="h-5 w-5" />
-                Evaluation Templates
-              </CardTitle>
-              <CardDescription>
-                {selectedRole 
-                  ? `Manage evaluation template for ${selectedRole.name} role`
-                  : 'Select a role to manage its evaluation template'
-                }
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {selectedRole ? (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-lg font-semibold">{selectedRole.name}</h3>
-                      <p className="text-muted-foreground">Area: {selectedRole.areas?.name}</p>
-                    </div>
-                    <Button>
-                      <Settings className="h-4 w-4 mr-2" />
-                      Configure Template
-                    </Button>
-                  </div>
-                  <div className="text-center py-8 text-muted-foreground">
-                    Template builder coming soon...
-                  </div>
-                </div>
-              ) : (
+          {selectedRole ? (
+            <EvaluationTemplateBuilder
+              roleId={selectedRole.id}
+              roleName={selectedRole.name}
+              areaName={selectedRole.areas?.name || 'Unknown Area'}
+              onClose={() => setSelectedRole(null)}
+            />
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Award className="h-5 w-5" />
+                  Evaluation Templates
+                </CardTitle>
+                <CardDescription>
+                  Select a role to manage its evaluation template
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
                 <div className="text-center py-8 text-muted-foreground">
                   Select a role from the Roles tab to configure its evaluation template.
                 </div>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
       </Tabs>
 
