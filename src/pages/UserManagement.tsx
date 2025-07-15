@@ -95,7 +95,7 @@ export default function UserManagement() {
     lastName: '',
     role: 'user',
     areaId: 'none',
-    roleId: '',
+    roleId: 'no-role',
     password: '',
     clientId: ''
   });
@@ -244,7 +244,7 @@ export default function UserManagement() {
       lastName: '',
       role: 'user',
       areaId: profile?.role === 'area_admin' ? profile.area_id || 'none' : 'none',
-      roleId: '',
+      roleId: 'no-role',
       password: '',
       clientId: profile?.role === 'super_admin' ? '' : profile?.client_id || ''
     });
@@ -275,13 +275,13 @@ export default function UserManagement() {
         tempProfileData.area_id = null;
         tempProfileData.role_id = null;
       } else if (profile?.role === 'area_admin') {
-        // Area admins can only create users in their own area
-        tempProfileData.area_id = profile.area_id;
-        tempProfileData.role_id = formData.roleId || null;
+        // Set area_id and role_id based on role and user permissions
+        tempProfileData.area_id = formData.areaId === 'none' ? null : formData.areaId;
+        tempProfileData.role_id = (formData.roleId === 'no-role' || !formData.roleId) ? null : formData.roleId;
       } else {
         // Super admins and client admins can assign to any area
         tempProfileData.area_id = formData.areaId === 'none' ? null : formData.areaId;
-        tempProfileData.role_id = formData.roleId || null;
+        tempProfileData.role_id = (formData.roleId === 'no-role' || !formData.roleId) ? null : formData.roleId;
       }
 
       // Create the auth user
@@ -349,7 +349,7 @@ export default function UserManagement() {
           area_id: formData.role === 'client_admin' ? null : 
                   (formData.role === 'area_admin' ? (formData.areaId === 'none' ? null : formData.areaId) : 
                   (formData.areaId === 'none' ? null : formData.areaId)),
-          role_id: formData.roleId || null
+          role_id: (formData.roleId === 'no-role' || !formData.roleId) ? null : formData.roleId
         })
         .eq('id', editingUser.id);
 
@@ -409,7 +409,7 @@ export default function UserManagement() {
       lastName: user.last_name || '',
       role: user.role === 'super_admin' ? 'client_admin' : (user.role as 'user' | 'client_admin' | 'area_admin'),
       areaId: user.area_id || 'none',
-      roleId: (user as any).role_id || ''
+      roleId: (user as any).role_id || 'no-role'
     });
     setIsEditDialogOpen(true);
   };
@@ -594,7 +594,7 @@ export default function UserManagement() {
                   {formData.role !== 'client_admin' && (
                     <div>
                       <Label htmlFor="area">Area</Label>
-                      <Select value={formData.areaId} onValueChange={(value) => setFormData({ ...formData, areaId: value, roleId: '' })}>
+                      <Select value={formData.areaId} onValueChange={(value) => setFormData({ ...formData, areaId: value, roleId: 'no-role' })}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select area" />
                         </SelectTrigger>
@@ -624,7 +624,7 @@ export default function UserManagement() {
                           <SelectValue placeholder="Select role" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">No specific role</SelectItem>
+                          <SelectItem value="no-role">No specific role</SelectItem>
                           {roles.filter(role => role.area_id === formData.areaId).map((role) => (
                             <SelectItem key={role.id} value={role.id}>
                               {role.name}
@@ -866,7 +866,7 @@ export default function UserManagement() {
                 <Label htmlFor="editAreaId">{formData.role === 'area_admin' ? 'Primary Area' : 'Area'}</Label>
                 <Select 
                   value={formData.areaId} 
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, areaId: value, roleId: '' }))}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, areaId: value, roleId: 'no-role' }))}
                   disabled={profile?.role === 'area_admin'}
                 >
                   <SelectTrigger>
@@ -896,7 +896,7 @@ export default function UserManagement() {
                     <SelectValue placeholder="Select role" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">No specific role</SelectItem>
+                    <SelectItem value="no-role">No specific role</SelectItem>
                     {roles.filter(role => role.area_id === formData.areaId).map((role) => (
                       <SelectItem key={role.id} value={role.id}>
                         {role.name}
