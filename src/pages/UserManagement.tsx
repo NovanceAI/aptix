@@ -237,6 +237,11 @@ export default function UserManagement() {
           client_id: profile?.role === 'super_admin' ? formData.clientId : profile?.client_id
         };
 
+        // Ensure client_id is always set for area_admins and client_admins
+        if (profile?.role === 'area_admin' || profile?.role === 'client_admin') {
+          profileData.client_id = profile.client_id;
+        }
+
         // Set area_id based on role and user permissions
         if (formData.role === 'client_admin') {
           profileData.area_id = null;
