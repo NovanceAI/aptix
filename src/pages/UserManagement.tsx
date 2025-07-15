@@ -211,7 +211,35 @@ export default function UserManagement() {
 
   const handleAddUser = async () => {
     try {
-      // First create the auth user
+      // Store current session to restore later
+      const { data: currentSession } = await supabase.auth.getSession();
+      
+      // Create profile entry first with a temporary ID, then update with auth user ID
+      const tempProfileData: any = {
+        email: formData.email,
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        role: formData.role,
+        client_id: profile?.role === 'super_admin' ? formData.clientId : profile?.client_id
+      };
+
+      // Ensure client_id is always set for area_admins and client_admins
+      if (profile?.role === 'area_admin' || profile?.role === 'client_admin') {
+        tempProfileData.client_id = profile.client_id;
+      }
+
+      // Set area_id based on role and user permissions
+      if (formData.role === 'client_admin') {
+        tempProfileData.area_id = null;
+      } else if (profile?.role === 'area_admin') {
+        // Area admins can only create users in their own area
+        tempProfileData.area_id = profile.area_id;
+      } else {
+        // Super admins and client admins can assign to any area
+        tempProfileData.area_id = formData.areaId === 'none' ? null : formData.areaId;
+      }
+
+      // Create the auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password!,
@@ -227,39 +255,16 @@ export default function UserManagement() {
       if (authError) throw authError;
 
       if (authData.user) {
-        // Create profile entry
-        const profileData: any = {
+        // Restore the original session to maintain admin context
+        if (currentSession.session) {
+          await supabase.auth.setSession(currentSession.session);
+        }
+
+        // Now create the profile with the auth user ID and admin context
+        const profileData = {
           id: authData.user.id,
-          email: formData.email,
-          first_name: formData.firstName,
-          last_name: formData.lastName,
-          role: formData.role,
-          client_id: profile?.role === 'super_admin' ? formData.clientId : profile?.client_id
+          ...tempProfileData
         };
-
-        // Ensure client_id is always set for area_admins and client_admins
-        if (profile?.role === 'area_admin' || profile?.role === 'client_admin') {
-          profileData.client_id = profile.client_id;
-        }
-
-        // Set area_id based on role and user permissions
-        if (formData.role === 'client_admin') {
-          profileData.area_id = null;
-        } else if (profile?.role === 'area_admin') {
-          // Area admins can only create users in their own area
-          profileData.area_id = profile.area_id;
-        } else {
-          // Super admins and client admins can assign to any area
-          profileData.area_id = formData.areaId === 'none' ? null : formData.areaId;
-        }
-
-        // Debug: Check current authenticated user before insert
-        const { data: currentUser } = await supabase.auth.getUser();
-        console.log('Current authenticated user during profile creation:', {
-          currentUserId: currentUser.user?.id,
-          currentUserEmail: currentUser.user?.email,
-          profileDataBeingInserted: profileData
-        });
 
         const { error: profileError } = await supabase
           .from('profiles')
@@ -278,12 +283,6 @@ export default function UserManagement() {
       }
     } catch (error: any) {
       console.error('Error creating user:', error);
-      console.error('Profile data that failed:', {
-        role: formData.role,
-        client_id: profile?.role === 'super_admin' ? formData.clientId : profile?.client_id,
-        area_id: profile?.role === 'area_admin' ? profile.area_id : (formData.areaId === 'none' ? null : formData.areaId),
-        user_role: profile?.role
-      });
       toast({
         title: "Error",
         description: error.message || "Failed to create user",
