@@ -21,7 +21,8 @@ import {
   Edit,
   Shield,
   Settings,
-  UserPlus
+  UserPlus,
+  UserCog
 } from 'lucide-react';
 
 interface Area {
@@ -351,8 +352,9 @@ export default function Areas() {
       </div>
 
       <Tabs defaultValue="areas" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="areas">Areas</TabsTrigger>
+          <TabsTrigger value="roles">Roles</TabsTrigger>
           <TabsTrigger value="permissions">Permissions</TabsTrigger>
         </TabsList>
 
@@ -409,6 +411,34 @@ export default function Areas() {
                   ))}
                 </TableBody>
               </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="roles" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <UserCog className="h-5 w-5" />
+                Employee Roles
+              </CardTitle>
+              <CardDescription>
+                <div className="flex items-center justify-between">
+                  <span>Manage roles within your areas</span>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => window.location.href = '/roles'}
+                  >
+                    Manage Roles
+                  </Button>
+                </div>
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-8 text-muted-foreground">
+                <p>Click "Manage Roles" to create and configure employee roles and their evaluation templates.</p>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

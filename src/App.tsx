@@ -15,6 +15,7 @@ import SuperAdmin from "./pages/SuperAdmin";
 import UserManagement from "./pages/UserManagement";
 import Areas from "./pages/Areas";
 import Periods from "./pages/Periods";
+import Roles from "./pages/Roles";
 
 const queryClient = new QueryClient();
 
@@ -102,6 +103,14 @@ function AppContent() {
           element={
             <ProtectedRoute requiredRole="client_admin">
               <Periods />
+            </ProtectedRoute>
+          }
+        />
+        <Route 
+          path="/roles" 
+          element={
+            <ProtectedRoute requiredRoles={["client_admin", "area_admin"]}>
+              <Roles />
             </ProtectedRoute>
           }
         />
